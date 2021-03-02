@@ -2,7 +2,7 @@ use crate::*;
 
 use nom::{
     IResult,
-    bytes::complete::{tag, take_while1},
+    bytes::complete::{tag, take_while, take_while1},
     branch::alt,
     character::{
         complete::{one_of, space0, digit1},
@@ -15,9 +15,9 @@ pub fn query(input : &str) -> IResult<&str, Query> {
     alt((add, done, search))(input)
 }
 
-fn ws(input : &str) -> IResult<&str, char> { one_of(" \t")(input)
+fn ws(input : &str) -> IResult<&str, char> { 
+    one_of(" \t")(input)
 }
-
 
 fn add(input : &str) -> IResult<&str, Query> {
     match preceded(
@@ -49,7 +49,7 @@ fn word(input : &str) -> IResult<&str, &str> {
 }
 
 fn todo_tag(input : &str) -> IResult<&str, &str> {
-    preceded(tag("#"), word)(input)
+    preceded(tag("#"), word)(input) //TODO: figure out a good way to stop hash from being stripped off at this point
 }
 
 fn description(input : &str) -> IResult<&str, String> {
@@ -107,7 +107,7 @@ fn search(input : &str) -> IResult<&str, Query> {
 fn search_word_or_tag(input : &str) -> IResult<&str, SearchWordOrTag> {
     match alt((todo_tag, word))(input) {
         Err(e) => Err(e),
-        Ok((rest, wot)) => {
+        Ok((rest, wot)) => { //TODO: figure out why hashes are stripped off of tags before it reaches here
             if wot.starts_with("#") {
                 Ok( (rest, SearchWordOrTag::RawTag(wot[1..].to_string())) )
             } else {

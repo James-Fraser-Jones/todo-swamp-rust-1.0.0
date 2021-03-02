@@ -39,7 +39,7 @@ impl fmt::Display for QueryResult {
                 let mut buff : Vec<String> = vec![];
                 buff.push(format!("{} item(s) found", rs.len()));
                 for i in rs {
-                    buff.push(format!("{:?}", i));
+                    buff.push(format!("{}", i));
                 }
                 write!(f, "{}", buff.join("\n"))
             }
