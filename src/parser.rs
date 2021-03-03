@@ -105,7 +105,7 @@ fn search(input : &str) -> IResult<&str, Query> {
 }
 
 fn search_word_or_tag(input : &str) -> IResult<&str, SearchWordOrTag> {
-    match alt((pair(tag("#"), word), (pair(tag(""), word))))(input) {
+    match alt((pair(tag("#"), word), (pair(tag(""), word))))(input) { //TODO: ensure that tag("") does what I think it does
         Err(e) => Err(e),
         Ok((rest, (hash, wot))) => {
             if hash.starts_with("#") {
