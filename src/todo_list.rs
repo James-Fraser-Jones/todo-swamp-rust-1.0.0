@@ -136,50 +136,44 @@ impl TodoList {
     pub fn done_with_index(&mut self, idx: Index) -> Option<Index> {
         if let Ok(n) = self.items.binary_search_by_key(&idx, |item| item.index) { //TODO: check whether this moves ownership by accident
             self.items[n].done = true;
+            Some(idx) //TODO: figure out under what circumstances we return None
         }
-        Some(idx) //TODO: figure out under what circumstances we return None
+        else {
+            None
+        }
     }
 
     pub fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
 
-        fn substring_match(string: &String, substring: &String) -> bool{ //TODO: check whether this function actually works
+        fn substring_match(string: &String, substring: &String) -> bool { //TODO: check whether this function actually works
             string.split(substring).count() > 1
         }
 
         let mut results = vec![];
 
-        for item in self.items.iter() {
-            let mut include_item = true;
+        'item: for item in self.items.iter() { //TODO: check whether this loop actually works
 
-            if item.done { //don't include search for done items
-                include_item = false;
+            if item.done { //don't search done items
+                continue 'item
             }
 
-            if !include_item {continue} //TODO: figure out most efficient way to do this kind of short-circuit in rest of this loop
-
-            for SearchWord(w) in &sp.words {
-                //search description
+            for SearchWord(w) in &sp.words { //search description
                 let Description(w2) = &item.description;
-                if !substring_match(w2, w){
-                    include_item = false;
+                if !substring_match(w2, w) {
+                    continue 'item
                 }
             }
 
-            println!("Search tags: {:?}, item tags: {:?}", &sp.tags, &item.tags);
-
-            for Tag(t) in &sp.tags {
-                //search all tags
+            'tag: for Tag(t) in &sp.tags { //search tags
                 for Tag(t2) in &item.tags {
-                    if !substring_match(t2, t){
-                        println!("Attempting to find substring: {}, inside string: {}", t, t2);
-                        include_item = false;
+                    if substring_match(t2, t) {
+                        continue 'tag
                     }
                 }
+                continue 'item
             }
 
-            if include_item {
-                results.push(item);
-            }
+            results.push(item);
         }
 
         results

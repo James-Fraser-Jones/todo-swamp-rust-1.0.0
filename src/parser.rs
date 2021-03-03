@@ -49,7 +49,7 @@ fn word(input : &str) -> IResult<&str, &str> {
 }
 
 fn todo_tag(input : &str) -> IResult<&str, &str> {
-    preceded(tag("#"), word)(input) //TODO: figure out a good way to stop hash from being stripped off at this point
+    preceded(tag("#"), word)(input)
 }
 
 fn description(input : &str) -> IResult<&str, String> {
@@ -105,11 +105,11 @@ fn search(input : &str) -> IResult<&str, Query> {
 }
 
 fn search_word_or_tag(input : &str) -> IResult<&str, SearchWordOrTag> {
-    match alt((todo_tag, word))(input) {
+    match alt((pair(tag("#"), word), (pair(tag(""), word))))(input) {
         Err(e) => Err(e),
-        Ok((rest, wot)) => { //TODO: figure out why hashes are stripped off of tags before it reaches here
-            if wot.starts_with("#") {
-                Ok( (rest, SearchWordOrTag::RawTag(wot[1..].to_string())) )
+        Ok((rest, (hash, wot))) => {
+            if hash.starts_with("#") {
+                Ok( (rest, SearchWordOrTag::RawTag(wot.to_string())) )
             } else {
                 Ok( (rest, SearchWordOrTag::RawWord(wot.to_string())) )
             }
