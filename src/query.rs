@@ -4,15 +4,14 @@ use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Query {
-    Add (Description, Vec<Tag>),
+    Add (Vec<Word>, Vec<Tag>),
     Done (Index),
     Search (SearchParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchParams {
-    pub words : Vec<SearchWord>,
-    pub tags  : Vec<Tag>,
+    pub params : Vec<todo_list::SearchWordOrTag>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -2,7 +2,7 @@ use crate::*;
 
 use nom::{
     IResult,
-    bytes::complete::{tag, take_while, take_while1},
+    bytes::complete::{tag, take_while1},
     branch::alt,
     character::{
         complete::{one_of, space0, digit1},
@@ -27,21 +27,23 @@ fn add(input : &str) -> IResult<&str, Query> {
         Err(e) => Err(e),
         Ok( (rest, (d, ts)) ) => Ok((
             rest,
-            Query::Add(Description::new(&d), ts)
+            Query::Add(d, ts)
         )),
     }
-}
-
-fn is_lowecase_or_dash_or_whitespace(c : char) -> bool {
-    c.is_ascii_lowercase() || c.is_whitespace() || c == '-'
 }
 
 fn is_lowecase_or_dash(c : char) -> bool {
     c.is_ascii_lowercase() || c == '-'
 }
 
-fn sentence(input : &str) -> IResult<&str, &str> {
-    take_while(is_lowecase_or_dash_or_whitespace)(input)
+fn sentence(input : &str) -> IResult<&str, Vec<Word>> {
+    match separated_list(ws, word)(input) {
+        Err(e) => Err(e),
+        Ok((rest, ts)) => Ok((
+            rest,
+            ts.iter().map(|w| Word::new(w)).collect()
+        )),
+    }
 }
 
 fn word(input : &str) -> IResult<&str, &str> {
@@ -52,10 +54,10 @@ fn todo_tag(input : &str) -> IResult<&str, &str> {
     preceded(tag("#"), word)(input)
 }
 
-fn description(input : &str) -> IResult<&str, String> {
+fn description(input : &str) -> IResult<&str, Vec<Word>> {
     match delimited(tag("\""), sentence, tag("\""))(input) {
         Err(e) => Err(e),
-        Ok((rest, d)) => Ok((rest, d.to_string())),
+        Ok((rest, d)) => Ok((rest, d)),
     }
 }
 
@@ -87,11 +89,6 @@ fn vec_to_u64(dss : Vec<&str>) -> u64 {
     ds.parse::<u64>().unwrap()
 }
 
-enum SearchWordOrTag {
-    RawWord (String),
-    RawTag (String),
-}
-
 fn search(input : &str) -> IResult<&str, Query> {
     match preceded(pair(tag("search"), ws),
         separated_list(
@@ -118,16 +115,7 @@ fn search_word_or_tag(input : &str) -> IResult<&str, SearchWordOrTag> {
 }
 
 fn mash_to_query(mash : Vec<SearchWordOrTag>) -> Query {
-    let mut search_words : Vec<SearchWord> = vec![];
-    let mut tags : Vec<Tag> = vec![];
-    for i in mash {
-        match i {
-            SearchWordOrTag::RawWord(w) => search_words.push(SearchWord::new(&w)),
-            SearchWordOrTag::RawTag(t)  => tags.push(Tag::new(&t)),
-        }
-    }
     Query::Search(SearchParams{
-        words: search_words,
-        tags
+        params: mash,
     })
 }

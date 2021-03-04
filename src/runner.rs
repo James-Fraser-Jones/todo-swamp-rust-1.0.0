@@ -8,7 +8,7 @@ pub fn run_line(line: &str, tl: &mut TodoList) {
         }
     }
     else { //TODO: figure out whether this is really necessary
-        panic!("Failed to parse command: {:?}", line);
+        panic!("Failed to parse query: {:?}", line);
     }
 }
 
