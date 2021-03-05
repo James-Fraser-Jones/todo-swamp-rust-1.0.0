@@ -3,6 +3,8 @@ use std::cmp::Ordering;
 
 use crate::*;
 
+//TODO: figure out why "search ..." (just whitespace in the ...) returns results
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub struct Index(u64);
 
@@ -71,7 +73,7 @@ impl fmt::Display for Tag {
 }
 
 //custom display implementation for a Vec of Words
-pub struct Words<'a> {
+struct Words<'a> {
     arr: &'a Vec<Word>,
 }
 impl fmt::Display for Words<'_> {
@@ -87,7 +89,7 @@ impl fmt::Display for Words<'_> {
 }
 
 //custom display implementation for a Vec of Tags
-pub struct Tags<'a> {
+struct Tags<'a> {
     arr: &'a Vec<Tag>,
 }
 impl fmt::Display for Tags<'_> {
