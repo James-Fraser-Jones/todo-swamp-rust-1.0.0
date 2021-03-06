@@ -209,7 +209,7 @@ fn match_subsequence(sequence: &str, subsequence: &str) -> bool {
     let mut i = 0;
     for b in sequence.as_bytes() {
         unsafe { //safe because termination is guaranteed before i gets too large
-            if b == sub.get_unchecked(i) {
+            if b == sub.get_unchecked(i) { //TODO: figure out whether using unsafe is really necessary here (for performance reasons)
                 i = i + 1;
                 if i == l {
                     return true
