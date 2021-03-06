@@ -15,14 +15,6 @@ pub struct SearchParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SearchWord(pub String);
-impl SearchWord {
-    pub fn new(s: &str) -> SearchWord {
-        SearchWord(s.to_owned())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QueryResult {
     Added (TodoItem),
     Done,
