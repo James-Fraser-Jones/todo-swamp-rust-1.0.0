@@ -14,7 +14,7 @@ pub fn main() {
     let buf_reader: Box<dyn io::BufRead>;
     if let Some(file_name) = args.nth(1) {
         let file = File::open(&file_name).expect(
-            &format!("Error failed to open file: \"{}\"", file_name)[..]
+            &format!("Error failed to open file: \"{}\"", file_name)
         );
         buf_reader = Box::new(BufReader::new(file)); 
     }
@@ -27,7 +27,7 @@ pub fn main() {
     let mut lines = buf_reader.lines();
     if let Some(Ok(_s)) = lines.next() {
         // let query_count: i32 = s.trim().parse().expect(
-        //     &format!("Error parsing integer from first line of input: \"{}\"", s)[..]
+        //     &format!("Error parsing integer from first line of input: \"{}\"", s)
         // );
         for line in lines {
             if let Ok(l) = line {
