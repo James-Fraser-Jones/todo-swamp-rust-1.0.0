@@ -1,6 +1,5 @@
 use std::fmt;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
 use crate::*;
 
@@ -200,15 +199,14 @@ pub enum SearchWordOrTag {
 
 fn match_subsequence(sequence: &str, subsequence: &str) -> bool {
     let l = subsequence.len();
-    if l == 0 {
-        return true //prevent unsafe memory access if subsequence ended up being empty slice 
-                    //empty string is technically a subsequence of every string
+    if l == 0 { //prevent unsafe memory access if subsequence ended up being empty slice 
+        return true //empty string is technically a subsequence of every string
     }
     let sub = subsequence.as_bytes();
     let mut i = 0;
     for b in sequence.as_bytes() {
         unsafe { //safe because termination is guaranteed before i gets too large
-            if b == sub.get_unchecked(i) { //TODO: figure out whether using unsafe is really necessary here (for performance reasons)
+            if b == sub.get_unchecked(i) {
                 i = i + 1;
                 if i == l {
                     return true
@@ -218,82 +216,3 @@ fn match_subsequence(sequence: &str, subsequence: &str) -> bool {
     }
     false
 }
-
-//experimental area:
-
-pub struct Database<'a> { 
-    records: Vec<(usize, String)>,
-    index: Trie<'a>,
-    next_id: usize,
-}
-
-impl<'a> Database<'a> {
-    fn new() -> Database<'a> {
-        Database {
-            records: vec![],
-            index: Trie {
-                children: HashMap::new(), //TODO: replace inefficient hashing algorithm
-                parent: None,
-                level: 0,
-                position: 1,
-                first_occour: HashMap::new(),
-                last_occour: HashMap::new(),
-                next: None,
-                ids: vec![],
-            },
-            next_id: 0,
-        }
-    }
-
-    fn search(&self, subsequence: &str) -> Vec<(usize, &str)> {
-        //query trie directly, then do lookup into results using retrieved indices instead code below
-
-        let mut results = vec![];
-        for (index, sequence) in &self.records {
-            if match_subsequence(sequence, subsequence) {
-                results.push((*index, &sequence[..]));
-            }
-        }
-        results
-    }
-
-    fn insert(&mut self, new: &str) {
-        //insert into trie
-
-        self.records.push((self.next_id, new.to_owned()));
-        self.next_id = self.next_id + 1;
-    }
-
-    fn delete(&mut self, index: usize) {
-        //delete from trie
-
-        self.records.remove(index);
-    }
-}
-
-struct Trie<'a> {
-    children: HashMap<char, Trie<'a>>,
-    parent: Option<&'a Trie<'a>>,
-
-    level: usize,
-    position: usize,
-
-    first_occour: HashMap<(char, usize), Trie<'a>>,
-    last_occour: HashMap<(char, usize), Trie<'a>>,
-    next: Option<&'a Trie<'a>>,
-
-    ids: Vec<usize>,
-}
-
-// struct Example<'a> {
-//     num: i32,
-//     next: Option<&'a Example<'a>>,
-// }
-// impl<'a> Example<'a> {
-//     fn new() -> Example<'a> {
-//         Example {
-//             num: 0,
-//             next: None,
-//         }
-//     }
-// }
