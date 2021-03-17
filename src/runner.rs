@@ -4,11 +4,15 @@ pub fn run_line(line: &str, tl: &mut TodoList) {
     match parser::query(line) {
         Ok((_, q)) => match run_query(q, tl) {
             Ok(r) => { println!("{}", r); },
-            Err(e) => { eprintln!("Error: {}", e); },
+            Err(e) => { 
+                eprintln!("Error: {}", e);
+                panic!() //TODO: Remove this after debugging
+            },
         }
-        Err(e) => { //TODO: figure out whether this is necessary
+        Err(e) => {
             eprintln!("Error: {}", e); 
             eprintln!("Attempted to parse: \"{}\"", line);
+            panic!() //TODO: Remove this after debugging
         }, 
     }
 }

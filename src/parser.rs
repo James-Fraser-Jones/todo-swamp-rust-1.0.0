@@ -4,17 +4,16 @@ use nom::{
     IResult,
     bytes::complete::{tag, take_while1},
     branch::alt,
-    character::{
-        complete::{one_of, digit1},
-    },
+    character::complete::{one_of, digit1},
     multi::{separated_nonempty_list, many0},
     sequence::{pair, preceded, delimited},
+    combinator::opt,
 };
 
 //Specification parsers
 
 /*Assumptions:
--Whitespace within specification grammar consists of a single space or tab character (as parsed by the 'ws' function below)
+-Whitespace between tokens in the specification grammar represent a single space or tab character (as parsed by the 'ws' function below)
 -Whitespace is not required following a <description> if the add query's list of <tags> is empty
 -<description>s consist of at least one <word>
 */
@@ -26,7 +25,7 @@ pub fn query(input : &str) -> IResult<&str, Query> {
 fn add(input : &str) -> IResult<&str, Query> {
     match preceded(
         pair(tag("add"), ws),
-        pair(delimited(tag("\""), description, tag("\"")), many0(preceded(ws, todo_tag)))
+        pair(delimited(tag("\""), description, tag("\"")), tags)
     )(input) {
         Err(e) => Err(e),
         Ok((rest, (d, ts))) => Ok((rest, Query::Add(d, ts))),
@@ -59,6 +58,20 @@ fn description(input : &str) -> IResult<&str, Vec<Word>> {
 
 fn word(input : &str) -> IResult<&str, Word> {
     prim_word(input).map(|(rest, w)| (rest, Word::new(w)))
+}
+
+//specifically allows a single tab character (as opposed to a space) before first tag for the sake of consistency
+fn tags(input: &str) -> IResult<&str, Vec<Tag>> { 
+    match opt(pair(preceded(ws, todo_tag), many0(preceded(tag(" "), todo_tag))))(input) {
+        Err(e) => Err(e),
+        Ok((rest, ts)) => Ok((rest, match ts {
+            None => Vec::new(),
+            Some((first_tag, mut rest)) => {
+                rest.insert(0, first_tag);
+                rest
+            }
+        })),
+    }
 }
 
 fn todo_tag(input : &str) -> IResult<&str, Tag> {
