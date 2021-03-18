@@ -1,18 +1,18 @@
 use crate::*;
 
-pub fn run_line(line: &str, tl: &mut TodoList) {
+pub fn run_line(line: &str, tl: &mut TodoList) -> Option<QueryResult> {
     match parser::query(line) {
         Ok((_, q)) => match run_query(q, tl) {
-            Ok(r) => { println!("{}", r); },
+            Ok(r) => Some(r),
             Err(e) => { 
                 eprintln!("Error: {}", e);
-                panic!() //TODO: Remove this after debugging
+                None
             },
         }
         Err(e) => {
             eprintln!("Error: {}", e); 
             eprintln!("Attempted to parse: \"{}\"", line);
-            panic!() //TODO: Remove this after debugging
+            None
         }, 
     }
 }

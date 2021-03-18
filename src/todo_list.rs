@@ -150,7 +150,7 @@ impl TodoList {
     }
 
     pub fn done_with_index(&mut self, idx: Index) -> Option<Index> {
-        if let Ok(n) = self.items.binary_search_by_key(&idx, |item| item.index) { //TODO: check whether this moves ownership by accident
+        if let Ok(n) = self.items.binary_search_by_key(&idx, |item| item.index) {
             self.items[n].done = true;
             Some(idx) //TODO: figure out under what circumstances we return None
         }
@@ -159,7 +159,7 @@ impl TodoList {
         }
     }
 
-    pub fn search(&self, sp: SearchParams) -> Vec<&TodoItem> { //TODO: ensure this function actually works
+    pub fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
         let mut results = vec![];
         'item: for item in self.items.iter() { 
             if item.done { //don't search done items
