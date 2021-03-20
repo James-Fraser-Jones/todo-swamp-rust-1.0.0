@@ -6,14 +6,24 @@ use std::env;
 
 use todo_swamp::*;
 
+const BENCHMARK_SUFFIX: [&str; 5] = ["","_2","_3","_4","_5"];
+
 pub fn main() -> io::Result<()> {
-    //standard_run()
-    file_run()
+    // let args: Vec<String> = env::args().collect();
+    // let file_name = &args[1];
+    standard_run()
 }
 
-fn file_run() -> io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    let file_name = &args[1];
+// fn benchmark(file_name: &str) -> io::Result<f64> {
+//     for suffix in BENCHMARK_SUFFIX.iter() {
+//         let mut file_name = file_name.to_owned();
+//         file_name.push_str(suffix);
+//         file_run(&file_name)?;
+//     }
+//     Ok(4.0)
+// }
+
+fn file_run(file_name: &str) -> io::Result<()> {
     let file_in = File::open(format!("{}.in", file_name))?;
     let file_out = File::create(format!("{}.out", file_name))?;
 
@@ -52,6 +62,7 @@ fn standard_run() -> io::Result<()> {
                 }
             }
         }
+        buffer_out.flush()?;
     }
     Ok(())
 }
