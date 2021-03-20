@@ -8,6 +8,11 @@ edition = "2018"
 [dev-dependencies]
 assert_cmd = "1.0.1"
 predicates = "1"
+criterion = "0.3"
+
+[[bench]]
+name = "benchmarks"
+harness = false
 
 [dependencies]
 rand = "0.7"
