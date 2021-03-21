@@ -14,7 +14,7 @@ use todo_swamp::file_run;
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("10k");
     group.sample_size(10); //TODO: find out whether I need to tweak some other settings to offset loss of accuracy from reducing sample size
-    group.bench_function("file_run 10k", |b| b.iter(|| file_run(black_box("tests/fixtures/benchmark_10k"))));
+    group.bench_function("file_run 10k", |b| b.iter(|| file_run(black_box("tests/10k/benchmark_10k"))));
 }
 
 criterion_group!(benches, criterion_benchmark);
