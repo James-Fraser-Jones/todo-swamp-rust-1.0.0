@@ -60,7 +60,7 @@ fn word(input : &str) -> IResult<&str, Word> {
     prim_word(input).map(|(rest, w)| (rest, Word::new(w)))
 }
 
-//specifically allows a single tab character (as opposed to a space) before first tag for the sake of consistency
+//allows a single tab character (or a space) before first tag for the sake of consistency
 fn tags(input: &str) -> IResult<&str, Vec<Tag>> { 
     match opt(pair(preceded(ws, todo_tag), many0(preceded(tag(" "), todo_tag))))(input) {
         Err(e) => Err(e),
