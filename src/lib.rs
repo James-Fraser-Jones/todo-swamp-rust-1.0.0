@@ -6,6 +6,7 @@ pub mod trie;
 
 pub use todo_list::*;
 pub use query::*;
+pub use trie::*;
 
 use std::io::{self, prelude::*};
 use std::fs;
@@ -19,6 +20,8 @@ pub fn file_run(file_name: &str) -> io::Result<()> {
     let mut buffer_out = io::BufWriter::new(file_out);
 
     let mut tl: TodoList = TodoList::new();
+    //let mut tl: TriedoList = TriedoList::new(); //testing the trie implementation instead
+
     if let Some(Ok(_s)) = lines_in.next() {
         for line in lines_in {
             if let Ok(l) = line {

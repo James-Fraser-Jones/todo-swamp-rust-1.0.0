@@ -1,4 +1,4 @@
-extern crate todo_swamp; //I'm on Ubuntu now instead of Windows!
+extern crate todo_swamp;
 
 use todo_swamp::*;
 use std::io;

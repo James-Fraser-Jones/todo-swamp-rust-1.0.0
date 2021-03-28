@@ -3,9 +3,10 @@ use std::collections::{HashMap, HashSet};
 const CHARS: [char; 27] = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','-'];
 
 //recursive, no tree pruning
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Trie1 {
     children: HashMap<char, Trie1>,
-    ids: HashSet<u32>,
+    ids: HashSet<u64>,
 }
 impl Trie1 {
     pub fn new() -> Self {
@@ -15,24 +16,8 @@ impl Trie1 {
         }
     }
 
-    pub fn delete(&mut self, id: u32) {
-        fn delete_rec(trie: &mut Trie1, id: u32) {
-            trie.ids.remove(&id);
-            for trie in trie.children.values_mut() {
-                delete_rec(trie, id)
-            }
-        }
-        delete_rec(self, id)
-    }
-
-    pub fn insert_many(&mut self, id: u32, inserts: Vec<&str>) {
-        for insert in inserts {
-            self.insert(id, insert)
-        }
-    }
-
-    pub fn insert(&mut self, id: u32, insert: &str) {
-        fn insert_rec(trie: &mut Trie1, id: u32, insert: &str) {
+    pub fn add(&mut self, id: u64, insert: &str) {
+        fn add_rec(trie: &mut Trie1, id: u64, insert: &str) {
             trie.ids.insert(id);
             if insert.len() == 0 {
                 return
@@ -42,13 +27,13 @@ impl Trie1 {
                 trie.children.insert(first_char, Trie1::new());
             }
             let trie = trie.children.get_mut(&first_char).unwrap();
-            insert_rec(trie, id, &insert[1..]);
+            add_rec(trie, id, &insert[1..]);
         }
-        insert_rec(self, id, insert)
+        add_rec(self, id, insert)
     }
     
-    pub fn search(&self, search: &str) -> HashSet<u32> {
-        fn search_rec(trie: &Trie1, search: &str) -> HashSet<u32> {
+    pub fn search(&self, search: &str) -> HashSet<u64> {
+        fn search_rec(trie: &Trie1, search: &str) -> HashSet<u64> {
             if search.len() == 0 {
                 return trie.ids.clone()
             }
@@ -67,6 +52,16 @@ impl Trie1 {
             results
         };
         search_rec(self, search)
+    }
+
+    pub fn delete(&mut self, id: u64) {
+        fn delete_rec(trie: &mut Trie1, id: u64) {
+            trie.ids.remove(&id);
+            for trie in trie.children.values_mut() {
+                delete_rec(trie, id)
+            }
+        }
+        delete_rec(self, id)
     }
 }
 

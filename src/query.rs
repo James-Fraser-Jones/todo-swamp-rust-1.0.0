@@ -27,7 +27,7 @@ impl fmt::Display for QueryResult {
             QueryResult::Added(ti) => write!(f, "{}", ti.index),
             QueryResult::Done => write!(f, "done"),
             QueryResult::Found(rs) => {
-                let mut buff : Vec<String> = vec![];
+                let mut buff : Vec<String> = Vec::new();
                 buff.push(format!("{} item(s) found", rs.len()));
                 for i in rs {
                     buff.push(format!("{}", i));
