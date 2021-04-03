@@ -1,6 +1,93 @@
 use std::collections::{HashMap, HashSet};
+use std::ptr;
 
 const CHARS: [char; 27] = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','-'];
+
+//non-recursive, no tree pruning
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Trie2 {
+    children: HashMap<char, Trie2>,
+    ids: HashSet<u64>,
+    parent: *mut Trie2,
+}
+impl Trie2 {
+    pub fn new() -> Self {
+        Self::new_child(ptr::null_mut())
+    }
+
+    fn new_child(parent: *mut Trie2) -> Self {
+        Self{
+            children: HashMap::new(),
+            ids: HashSet::new(),
+            parent,
+        }
+    }
+
+    pub fn add(&mut self, id: u64, insert: &str) {
+        let mut trie = self;
+        trie.ids.insert(id);
+        for c in insert.chars() {
+            let empty_child = Self::new_child(trie);
+            trie = trie.children.entry(c).or_insert(empty_child);
+            trie.ids.insert(id);
+        }
+    }
+    
+    //depth first
+    pub fn search(&self, search: &str) -> HashSet<u64> {
+        let mut trie = self;
+        let mut word = String::new(); //essentially a stack of characters to keep track of where we are in traversing the trie
+        let mut index = 0;
+        let mut results = HashSet::new();
+
+        //get character we're looking for
+        if index < search.len() {
+            //this is O(n) because of unicode. (We might be able to make this constant time if we restrict to ASCII bytes)
+            let c = search.chars().nth(index).unwrap(); 
+
+        }
+        else {
+            //we've reached the end, try to move to adjacent sibling
+
+            //if no sibling available try to move up a level, then to an adjacent sibling
+
+            //if not possible to move up a level, we are at root and terminate
+        }
+
+        results
+
+        // fn search_rec(trie: &Trie2, search: &str) -> HashSet<u64> {
+        //     if search.len() == 0 {
+        //         return trie.ids.clone()
+        //     }
+        //     let first_char = search.chars().nth(0).unwrap();
+        //     let mut results = HashSet::new();
+        //     if let Some(trie) = trie.children.get(&first_char) {
+        //         results = results.union(&search_rec(trie, &search[1..])).cloned().collect();
+        //     }
+        //     for c in CHARS.iter() {
+        //         if *c != first_char {
+        //             if let Some(trie) = trie.children.get(c) {
+        //                 results = results.union(&search_rec(trie, &search)).cloned().collect();
+        //             }
+        //         }
+        //     }
+        //     results
+        // };
+        // search_rec(self, search)
+    }
+
+    pub fn delete(&mut self, id: u64) {
+        fn delete_rec(trie: &mut Trie2, id: u64) {
+            if trie.ids.remove(&id) {
+                for trie in trie.children.values_mut() {
+                    delete_rec(trie, id)
+                }
+            }
+        }
+        delete_rec(self, id)
+    }
+}
 
 //recursive, no tree pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,7 +110,7 @@ impl Trie1 {
                 return
             }
             let first_char = insert.chars().nth(0).unwrap();
-            if let None = trie.children.get_mut(&first_char) {
+            if !trie.children.contains_key(&first_char) {
                 trie.children.insert(first_char, Trie1::new());
             }
             let trie = trie.children.get_mut(&first_char).unwrap();
@@ -56,9 +143,10 @@ impl Trie1 {
 
     pub fn delete(&mut self, id: u64) {
         fn delete_rec(trie: &mut Trie1, id: u64) {
-            trie.ids.remove(&id);
-            for trie in trie.children.values_mut() {
-                delete_rec(trie, id)
+            if trie.ids.remove(&id) {
+                for trie in trie.children.values_mut() {
+                    delete_rec(trie, id)
+                }
             }
         }
         delete_rec(self, id)
