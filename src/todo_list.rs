@@ -146,16 +146,17 @@ impl TodoList {
             items: Vec::new(),
         }
     }
+}
 
-    pub fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
+impl TodoLister for TodoList {
+    fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
         let item = TodoItem::new(self.top_index, description, tags, false);
         let item_c = item.clone();
         self.items.push(item);
         self.top_index = Index::new(self.top_index.value() + 1);
         item_c
     }
-
-    pub fn done_with_index(&mut self, idx: Index) -> Option<Index> {
+    fn done_with_index(&mut self, idx: Index) -> Option<Index> {
         if let Ok(n) = self.items.binary_search_by_key(&idx, |item| item.index) {
             self.items[n].done = true;
             Some(idx) //TODO: figure out under what circumstances we return None
@@ -164,8 +165,7 @@ impl TodoList {
             None
         }
     }
-
-    pub fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
+    fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
         let mut results = Vec::new();
         'item: for item in self.items.iter() { 
             if item.done { //don't search done items
@@ -197,37 +197,27 @@ impl TodoList {
     }
 }
 
-impl TodoLister for TodoList {
-    fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
-        self.push(description, tags)
-    }
-    fn done_with_index(&mut self, idx: Index) -> Option<Index> {
-        self.done_with_index(idx)
-    }
-    fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
-        self.search(sp)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TriedoList {
+pub struct TriedoList<T: Trie> {
     top_index: Index,
     items: Vec<TodoItem>,
-    words: Trie1,
-    tags: Trie1,
+    words: T,
+    tags: T,
 }
 
-impl TriedoList {
+impl<T: Trie> TriedoList<T> {
     pub fn new() -> Self {
         TriedoList {
             top_index: Index::new(0),
             items: Vec::new(),
-            words: Trie1::new(),
-            tags: Trie1::new(),
+            words: T::new(),
+            tags: T::new(),
         }
     }
+}
 
-    pub fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
+impl<T: Trie> TodoLister for TriedoList<T> {
+    fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
         self.words.add(self.top_index.value(), description.iter().map(|Word(s)| &s[..]).collect());
         self.tags.add(self.top_index.value(), tags.iter().map(|Tag(t)| &t[..]).collect());
         let item = TodoItem::new(self.top_index, description, tags, false);
@@ -236,19 +226,17 @@ impl TriedoList {
         self.top_index = Index::new(self.top_index.value() + 1);
         item_c
     }
-
-    pub fn done_with_index(&mut self, idx: Index) -> Option<Index> {
+    fn done_with_index(&mut self, idx: Index) -> Option<Index> {
         self.words.delete(idx.value());
         if let Ok(n) = self.items.binary_search_by_key(&idx, |item| item.index) {
             self.items[n].done = true;
-            Some(idx) //TODO: figure out under what circumstances we return None
+            Some(idx)
         }
         else {
             None
         }
     }
-
-    pub fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
+    fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
         let mut word_searches = Vec::new();
         let mut tag_searches = Vec::new();
         for param in &sp.params {
@@ -263,30 +251,19 @@ impl TriedoList {
         }
         let indices;
         if word_searches.len() > 0 && tag_searches.len() > 0 {
-            indices = self.words.search(word_searches).intersection(&self.tags.search(tag_searches)).cloned().collect();
+            let word_indices = self.words.search(word_searches, None);
+            indices = word_indices.intersection(&self.tags.search(tag_searches, Some(&word_indices))).cloned().collect();
         }
         else if word_searches.len() > 0 {
-            indices = self.words.search(word_searches);
+            indices = self.words.search(word_searches, None);
         }
         else if tag_searches.len() > 0 {
-            indices = self.tags.search(tag_searches);
+            indices = self.tags.search(tag_searches, None);
         }
         else {
             return Vec::new() 
         }
         indices.iter().map(|index| &self.items[*index as usize]).collect()
-    }
-}
-
-impl TodoLister for TriedoList {
-    fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
-        self.push(description, tags)
-    }
-    fn done_with_index(&mut self, idx: Index) -> Option<Index> {
-        self.done_with_index(idx)
-    }
-    fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
-        self.search(sp)
     }
 }
 
