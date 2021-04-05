@@ -16,7 +16,13 @@ impl Trie2 {
         }
     }
 
-    pub fn add(&mut self, id: u64, insert: &str) {
+    pub fn add(&mut self, id: u64, inserts: Vec<&str>) {
+        for insert in inserts {
+            Self::add_single(self, id, insert)
+        }
+    }
+
+    fn add_single(&mut self, id: u64, insert: &str) {
         let mut trie = self;
         trie.ids.insert(id);
         for c in insert.chars() {
@@ -25,14 +31,22 @@ impl Trie2 {
         }
     }
 
-    pub fn search(&self, search: &str) -> HashSet<u64> {
+    pub fn search(&self, searches: Vec<&str>) -> HashSet<u64> {
+        let mut matches = searches.iter().map(|search| Self::search_single(self, search));
+        if let Some(first_match) = matches.next() {
+            return matches.fold(first_match, |acc, next_match| acc.intersection(&next_match).cloned().collect())
+        }
+        HashSet::new()
+    }
+
+    fn search_single(&self, search: &str) -> HashSet<u64> {
         let mut results = HashSet::new();
         let mut tries_to_visit = vec![(self, search)];
         while let Some((trie, search)) = tries_to_visit.pop() {
             if let Some(first_char) = search.chars().nth(0) {
                 for c in CHARS.iter() {
                     if let Some(new_trie) = trie.children.get(c) {
-                        let new_search = if *c != first_char { &search[1..] } else { search };
+                        let new_search = if *c == first_char { &search[1..] } else { search };
                         tries_to_visit.push((new_trie, new_search));
                     }
                 }
@@ -70,7 +84,7 @@ impl Trie1 {
         }
     }
 
-    pub fn add(&mut self, id: u64, insert: &str) {
+    pub fn add(&mut self, id: u64, inserts: Vec<&str>) {
         fn add_rec(trie: &mut Trie1, id: u64, insert: &str) {
             trie.ids.insert(id);
             if let Some(first_char) = insert.chars().nth(0) {
@@ -78,26 +92,32 @@ impl Trie1 {
                 add_rec(trie, id, &insert[1..]);
             }
         }
-        add_rec(self, id, insert)
+        for insert in inserts {
+            add_rec(self, id, insert)
+        }
     }
     
-    pub fn search(&self, search: &str) -> HashSet<u64> {
+    pub fn search(&self, searches: Vec<&str>) -> HashSet<u64> {
         fn search_rec(trie: &Trie1, search: &str) -> HashSet<u64> {
             if let Some(first_char) = search.chars().nth(0) {
                 let mut results = HashSet::new();
                 for c in CHARS.iter() {
                     if let Some(trie) = trie.children.get(c) {
-                        let new_search = if *c != first_char { &search[1..] } else { search };
+                        let new_search = if *c == first_char { &search[1..] } else { search };
                         results = results.union(&search_rec(trie, new_search)).cloned().collect();
                     }
                 }
                 results
             }
-            else {
+            else { //search string is empty, we successfully matched whole string, so return ids for current node
                 trie.ids.clone()
             }
         };
-        search_rec(self, search)
+        let mut matches = searches.iter().map(|search| search_rec(self, search));
+        if let Some(first_match) = matches.next() {
+            return matches.fold(first_match, |acc, next_match| acc.intersection(&next_match).cloned().collect())
+        }
+        HashSet::new()
     }
 
     pub fn delete(&mut self, id: u64) {

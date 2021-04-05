@@ -228,12 +228,8 @@ impl TriedoList {
     }
 
     pub fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
-        for Word(s) in &description {
-            self.words.add(self.top_index.value(), s)
-        }
-        for Tag(t) in &tags {
-            self.tags.add(self.top_index.value(), t)
-        }
+        self.words.add(self.top_index.value(), description.iter().map(|Word(s)| &s[..]).collect());
+        self.tags.add(self.top_index.value(), tags.iter().map(|Tag(t)| &t[..]).collect());
         let item = TodoItem::new(self.top_index, description, tags, false);
         let item_c = item.clone();
         self.items.push(item);
@@ -253,40 +249,32 @@ impl TriedoList {
     }
 
     pub fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
-        if sp.params.len() == 0 {
-            return Vec::new()
-        }
-
-        let mut params = sp.params.iter();
-        let first_param = params.next();
-
-        let mut indices;
-
-        match first_param.unwrap() {
-            SearchWordOrTag::RawWord(w) => {
-                indices = self.words.search(&w);
-            },
-            SearchWordOrTag::RawTag(t) => {
-                indices = self.tags.search(&t);
-            },
-        }
-
-        for param in params {
-            let new_indices;
+        let mut word_searches = Vec::new();
+        let mut tag_searches = Vec::new();
+        for param in &sp.params {
             match param {
                 SearchWordOrTag::RawWord(w) => {
-                    new_indices = self.words.search(w);
+                    word_searches.push(&w[..]);
                 },
                 SearchWordOrTag::RawTag(t) => {
-                    new_indices = self.tags.search(t);
+                    tag_searches.push(&t[..]);
                 },
-            };
-            indices = indices.intersection(&new_indices).cloned().collect();
+            }
         }
-
-        let results = indices.iter().map(|index| &self.items[*index as usize]).collect();
-
-        results
+        let indices;
+        if word_searches.len() > 0 && tag_searches.len() > 0 {
+            indices = self.words.search(word_searches).intersection(&self.tags.search(tag_searches)).cloned().collect();
+        }
+        else if word_searches.len() > 0 {
+            indices = self.words.search(word_searches);
+        }
+        else if tag_searches.len() > 0 {
+            indices = self.tags.search(tag_searches);
+        }
+        else {
+            return Vec::new() 
+        }
+        indices.iter().map(|index| &self.items[*index as usize]).collect()
     }
 }
 
