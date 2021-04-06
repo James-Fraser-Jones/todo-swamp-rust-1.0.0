@@ -20,7 +20,8 @@ pub fn file_run(file_name: &str) -> io::Result<()> {
     let mut buffer_out = io::BufWriter::new(file_out);
 
     //let mut tl: TodoList = TodoList::new();
-    let mut tl: TriedoList<Trie1> = TriedoList::new();
+    //let mut tl: TriedoList<Trie1> = TriedoList::new();
+    let mut tl: TriedoList<Trie4> = TriedoList::new();
 
     if let Some(Ok(_s)) = lines_in.next() {
         for line in lines_in {

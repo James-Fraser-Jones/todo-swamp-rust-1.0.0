@@ -23,10 +23,11 @@ pub struct Trie4 {
 }
 impl Trie4 {
     fn add_single(&mut self, id: u64, insert: &str) {
+        
         let mut trie = self;
         let mut new_depth = insert.len();
         let mut old_depth = None;
-
+        
         trie.id_to_depth.entry(id)
             .and_modify(|current_depth| {
                 old_depth = Some(*current_depth);
@@ -53,6 +54,7 @@ impl Trie4 {
         for c in insert.chars() {
             trie = trie.children.entry(c).or_insert(Trie4::new());
             new_depth = new_depth - 1;
+            old_depth = None;
 
             trie.id_to_depth.entry(id)
             .and_modify(|current_depth| {
