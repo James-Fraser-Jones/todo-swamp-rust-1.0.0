@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{HashMap, HashSet};
 
 const CHARS: [char; 27] = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','-'];
 
@@ -13,71 +13,32 @@ pub trait Trie {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Trie4 {
     children: HashMap<char, Trie4>,
-
-    //bi-directional functional mapping from ids to depths (depth at each node for an index should be 1 + max(depth of each index-relevant immediate child))
-    id_to_depth: HashMap<u64, usize>, //set of all ids is just id_to_depth.keys()
-    depth_to_ids: BTreeMap<usize, HashSet<u64>>, //BTreeMap because we want to be able to quickly iterate through keys (depths) in sorted order
-
-    //we can exploit the combination of the mapping above with the filtered indices in order to search specifically for largest depth among indices in the filter list
-    //in order to compare to remaining character to match
+    id_to_depth: HashMap<u64, usize>,
 }
 impl Trie4 {
     fn add_single(&mut self, id: u64, insert: &str) {
-        
         let mut trie = self;
         let mut new_depth = insert.len();
-        let mut old_depth = None;
         
         trie.id_to_depth.entry(id)
             .and_modify(|current_depth| {
-                old_depth = Some(*current_depth);
                 if new_depth > *current_depth {
                     *current_depth = new_depth;
                 }
             })
             .or_insert(new_depth);
-
-        match old_depth { //necessary to handle borrowing constraints
-            Some(old_depth) => {
-                if new_depth > old_depth {
-                    trie.depth_to_ids.get_mut(&old_depth).unwrap().remove(&id);
-                    let set = trie.depth_to_ids.entry(new_depth).or_insert(HashSet::new());
-                    set.insert(id);
-                }
-            }
-            None => {
-                let set = trie.depth_to_ids.entry(new_depth).or_insert(HashSet::new());
-                set.insert(id);
-            }
-        }
 
         for c in insert.chars() {
             trie = trie.children.entry(c).or_insert(Trie4::new());
             new_depth = new_depth - 1;
-            old_depth = None;
 
             trie.id_to_depth.entry(id)
             .and_modify(|current_depth| {
-                old_depth = Some(*current_depth);
                 if new_depth > *current_depth {
                     *current_depth = new_depth;
                 }
             })
             .or_insert(new_depth);
-
-            match old_depth { //necessary to handle borrowing constraints
-                Some(old_depth) => {
-                    if new_depth > old_depth {
-                        trie.depth_to_ids.get_mut(&old_depth).unwrap().remove(&id);
-                        let set = trie.depth_to_ids.entry(new_depth).or_insert(HashSet::new());
-                        set.insert(id);
-                    }
-                }
-                None => {
-                    let set = trie.depth_to_ids.entry(new_depth).or_insert(HashSet::new());
-                    set.insert(id);
-                }
-            }
         }
     }
     fn search_single(&self, search: &str, filter: Option<&HashSet<u64>>) -> HashSet<u64> {
@@ -85,30 +46,23 @@ impl Trie4 {
         let mut tries_to_visit = vec![(self, search)];
         'trie: while let Some((trie, search)) = tries_to_visit.pop() {
 
+            let max_depth;
             if let Some(filter) = filter {
-                let mut matched = false;
-                for depth in self.depth_to_ids.keys() {
-                    if filter.intersection(&self.depth_to_ids.get(depth).unwrap()).count() > 0 {
-                        if search.len() > *depth { //the depth of the trie is less than the remaining number of searched characters, so skip
-                            continue 'trie
-                        }
-                        matched = true;
-                        break
-                    }
-                }
-                if !matched { //could not find any of the filter indices in any hashset, so skip
+                max_depth = trie.id_to_depth.keys()
+                                            .filter(|key| filter.contains(key))
+                                            .map(|key| trie.id_to_depth.get(key).unwrap())
+                                            .max();
+            }
+            else {
+                max_depth = trie.id_to_depth.values().max();
+            }
+            if let Some(max_depth) = max_depth {
+                if search.len() > *max_depth { //match is impossible because trie is not deep enough, so skip
                     continue 'trie
                 }
             }
-            else {
-                if let Some(max_depth) = self.depth_to_ids.keys().next() {
-                    if search.len() > *max_depth { //the depth of the trie is less than the remaining number of searched characters, so skip
-                        continue 'trie
-                    }
-                }
-                else { //there are no depth-keys, hence there are no ids at this node, so skip
-                    continue 'trie
-                }
+            else { //either there were no ids in the trie, or none of them matched those in the filter, so skip
+                continue 'trie
             }
 
             if let Some(first_char) = search.chars().nth(0) {
@@ -133,7 +87,6 @@ impl Trie for Trie4 {
         Trie4{
             children: HashMap::new(),
             id_to_depth: HashMap::new(),
-            depth_to_ids: BTreeMap::new(),
         }
     }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
@@ -157,10 +110,7 @@ impl Trie for Trie4 {
     fn delete(&mut self, id: u64) {
         let mut tries_to_visit = vec![self];
         while let Some(trie) = tries_to_visit.pop() {
-            if let Some(depth) = trie.id_to_depth.remove(&id) {
-                let set = trie.depth_to_ids.get_mut(&depth).unwrap();
-                set.remove(&id); //this may leave an empty hashset for a given depth key (intentional since it will likely be needed again later)
-
+            if let Some(_) = trie.id_to_depth.remove(&id) {
                 for new_trie in trie.children.values_mut() {
                     tries_to_visit.push(new_trie)
                 }

@@ -5,7 +5,6 @@ use crate::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub struct Index(u64);
-
 impl Index {
     pub fn new(i: u64) -> Self {
         Index(i)
@@ -15,13 +14,11 @@ impl Index {
         self.0
     }
 }
-
 impl Ord for Index {
     fn cmp(&self, other: &Self) -> Ordering {
         self.value().cmp(&other.value())
     }
 }
-
 impl fmt::Display for Index {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -30,7 +27,6 @@ impl fmt::Display for Index {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Word(String);
-
 impl Word {
     pub fn new(s: &str) -> Self {
         Word(s.to_owned())
@@ -40,7 +36,6 @@ impl Word {
         &self.0
     }
 }
-
 impl fmt::Display for Word {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -49,7 +44,6 @@ impl fmt::Display for Word {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tag(String);
-
 impl Tag {
     pub fn new(s: &str) -> Self {
         Tag(s.to_owned())
@@ -63,7 +57,6 @@ impl Tag {
         ss.clone().into_iter().map(|s| Tag::new(s)).collect()
     }
 }
-
 impl fmt::Display for Tag {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "#{}", self.0)
@@ -109,7 +102,6 @@ pub struct TodoItem {
     pub tags: Vec<Tag>,
     pub done: bool,
 }
-
 impl TodoItem {
     pub fn new(index: Index, description: Vec<Word>, tags: Vec<Tag>, done: bool) -> Self {
         TodoItem {
@@ -120,11 +112,26 @@ impl TodoItem {
         }
     }
 }
-
+impl PartialOrd for TodoItem {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.index.partial_cmp(&other.index)
+    }
+}
+impl Ord for TodoItem {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.index.cmp(&other.index)
+    }
+}
 impl fmt::Display for TodoItem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} \"{}\" {}", self.index, Words{arr: &self.description}, Tags{arr: &self.tags})
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SearchWordOrTag {
+    RawWord (String),
+    RawTag (String),
 }
 
 pub trait TodoLister {
@@ -138,7 +145,6 @@ pub struct TodoList {
     top_index: Index,
     items: Vec<TodoItem>,
 }
-
 impl TodoList {
     pub fn new() -> Self {
         TodoList {
@@ -146,8 +152,26 @@ impl TodoList {
             items: Vec::new(),
         }
     }
+    fn match_subsequence(sequence: &str, subsequence: &str) -> bool {
+        let l = subsequence.len();
+        if l == 0 { //prevent unsafe memory access if subsequence ended up being empty slice 
+            return true //empty string is technically a subsequence of every string
+        }
+        let sub = subsequence.as_bytes();
+        let mut i = 0;
+        for b in sequence.as_bytes() {
+            unsafe { //safe because termination is guaranteed before i gets too large
+                if b == sub.get_unchecked(i) {
+                    i = i + 1;
+                    if i == l {
+                        return true
+                    }
+                }
+            }
+        }
+        false
+    }
 }
-
 impl TodoLister for TodoList {
     fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
         let item = TodoItem::new(self.top_index, description, tags, false);
@@ -175,7 +199,7 @@ impl TodoLister for TodoList {
                 match param {
                     SearchWordOrTag::RawWord(sw) => {
                         for Word(w) in &item.description {
-                            if match_subsequence(w, sw) {
+                            if Self::match_subsequence(w, sw) {
                                 continue 'param //successful match, try next search parameter
                             }
                         }
@@ -183,7 +207,7 @@ impl TodoLister for TodoList {
                     }
                     SearchWordOrTag::RawTag(st) => {
                         for Tag(t) in &item.tags {
-                            if match_subsequence(t, st) {
+                            if Self::match_subsequence(t, st) {
                                 continue 'param //successful match, try next search parameter
                             }
                         }
@@ -204,7 +228,6 @@ pub struct TriedoList<T: Trie> {
     words: T,
     tags: T,
 }
-
 impl<T: Trie> TriedoList<T> {
     pub fn new() -> Self {
         TriedoList {
@@ -215,7 +238,6 @@ impl<T: Trie> TriedoList<T> {
         }
     }
 }
-
 impl<T: Trie> TodoLister for TriedoList<T> {
     fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
         self.words.add(self.top_index.value(), description.iter().map(|Word(s)| &s[..]).collect());
@@ -265,30 +287,4 @@ impl<T: Trie> TodoLister for TriedoList<T> {
         }
         indices.iter().map(|index| &self.items[*index as usize]).collect()
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SearchWordOrTag {
-    RawWord (String),
-    RawTag (String),
-}
-
-fn match_subsequence(sequence: &str, subsequence: &str) -> bool {
-    let l = subsequence.len();
-    if l == 0 { //prevent unsafe memory access if subsequence ended up being empty slice 
-        return true //empty string is technically a subsequence of every string
-    }
-    let sub = subsequence.as_bytes();
-    let mut i = 0;
-    for b in sequence.as_bytes() {
-        unsafe { //safe because termination is guaranteed before i gets too large
-            if b == sub.get_unchecked(i) {
-                i = i + 1;
-                if i == l {
-                    return true
-                }
-            }
-        }
-    }
-    false
 }
