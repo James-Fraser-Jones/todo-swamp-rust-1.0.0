@@ -183,7 +183,7 @@ impl TodoLister for TodoList {
     fn done_with_index(&mut self, idx: Index) -> Option<Index> {
         if let Ok(n) = self.items.binary_search_by_key(&idx, |item| item.index) {
             self.items[n].done = true;
-            Some(idx) //TODO: figure out under what circumstances we return None
+            Some(idx)
         }
         else {
             None
