@@ -10,7 +10,7 @@ pub fn main() -> io::Result<()> {
     // let args: Vec<String> = std::env::args().collect();
     // let file_name = &args[1];
 
-    //compare implementations
+    //compare all implementations over 5 seconds
     for i in 1..=4 {
         let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 5000)?;
         let trie1 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie1>::new(), 5000)?;
@@ -19,18 +19,34 @@ pub fn main() -> io::Result<()> {
         let trie4 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie4>::new(), 5000)?;
         println!("Naive: {}, Trie1: {}, Trie2: {}, Trie3: {}, Trie4: {}", naive, trie1, trie2, trie3, trie4);
     }
+    
+    // //compare just Naive and Trie4 implementations, over 60 seconds
+    // for i in 1..=2 {
+    //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 60000)?;
+    //     let trie4 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie4>::new(), 60000)?;
+    //     println!("Naive: {}, Trie4: {}", naive, trie4);
+    // }
+
+    // //testing just Trie4
+    // for i in 1..=5 {
+    //     let trie4 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie4>::new(), 10000)?;
+    //     println!("{}", trie4);
+    // }
+
+    // //testing just Naive
+    // for i in 1..=5 {
+    //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 10000)?;
+    //     println!("{}", naive);
+    // }
 
     Ok(())
 }
 
-fn _standard_run() -> io::Result<()> {
+fn _standard_run<T: TodoLister>(mut tl: T) -> io::Result<()> {
     let stdin = io::stdin();
     let stdout = io::stdout();
-
     let mut lines_in = stdin.lock().lines();
     let mut buffer_out = stdout.lock();
-
-    let mut tl: TodoList = TodoList::new();
     if let Some(Ok(_s)) = lines_in.next() { //read first line as query count, loop on remaining lines
         for line in lines_in {
             if let Ok(l) = line {
@@ -39,7 +55,24 @@ fn _standard_run() -> io::Result<()> {
                 }
             }
         }
-        buffer_out.flush()?;
+        buffer_out.flush()?; //TODO: figure out whether we need to flush the others
+    }
+    Ok(())
+}
+
+fn _file_run<T: TodoLister>(file_name: &str, append: &str, mut tl: T) -> io::Result<()> {
+    let file_in = fs::File::open(format!("{}.in", file_name))?;
+    let file_out = fs::File::create(format!("{}{}.out", file_name, append))?;
+    let mut lines_in = io::BufReader::new(file_in).lines();
+    let mut buffer_out = io::BufWriter::new(file_out);
+    if let Some(Ok(_s)) = lines_in.next() {
+        for line in lines_in {
+            if let Ok(l) = line {
+                if let Some(r) = runner::run_line(&l, &mut tl) {
+                    writeln!(buffer_out, "{}", r)?;
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -56,7 +89,8 @@ fn benchmark_run<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u128) ->
                 break
             }
             if let Ok(l) = line {
-                if let Some(_) = runner::run_line(&l, &mut tl) {
+                if let Some(result) = runner::run_line(&l, &mut tl) {
+                    black_box(result);
                     count += 1;
                 }
             }
@@ -65,9 +99,6 @@ fn benchmark_run<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u128) ->
     Ok(count)
 }
 
-/* Command to test resulting files when sort == true (0 means files are equal)
-cmp tests/Ak/benchmark_Ak_N_test.out tests/Ak/benchmark_Ak_N_testB.out ; echo $?
-*/
 fn _test_run<T: TodoLister>(file_name: &str, append: &str, mut tl: T, num_lines: usize) -> io::Result<()> {
     let file_in = fs::File::open(format!("{}.in", file_name))?;
     let file_out = fs::File::create(format!("{}{}.out", file_name, append))?;
@@ -95,4 +126,13 @@ fn _test_run<T: TodoLister>(file_name: &str, append: &str, mut tl: T, num_lines:
         }
     }
     Ok(())
+}
+
+//copied from criterion: https://docs.rs/criterion/0.3.4/src/criterion/lib.rs.html#174-180
+pub fn black_box<T>(dummy: T) -> T { 
+    unsafe {
+        let ret = std::ptr::read_volatile(&dummy);
+        std::mem::forget(dummy);
+        ret
+    }
 }

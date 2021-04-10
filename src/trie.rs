@@ -1,19 +1,20 @@
-use std::collections::{HashMap, HashSet};
+//use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashSet, FxHashMap};
 
 const CHARS: [char; 27] = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','-'];
 
 pub trait Trie {
     fn new() -> Self; 
     fn add(&mut self, id: u64, inserts: Vec<&str>);
-    fn search(&self, searches: Vec<&str>, filter: Option<&HashSet<u64>>) -> HashSet<u64>;
+    fn search(&self, searches: Vec<&str>, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64>;
     fn delete(&mut self, id: u64);
 }
 
 //non-recursive, search-match pruning and depth pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Trie4 {
-    children: HashMap<char, Trie4>,
-    id_to_depth: HashMap<u64, usize>,
+    children: FxHashMap<char, Trie4>,
+    id_to_depth: FxHashMap<u64, usize>,
 }
 impl Trie4 {
     fn add_single(&mut self, id: u64, insert: &str) {
@@ -41,8 +42,8 @@ impl Trie4 {
             .or_insert(new_depth);
         }
     }
-    fn search_single(&self, search: &str, filter: Option<&HashSet<u64>>) -> HashSet<u64> {
-        let mut results = HashSet::new();
+    fn search_single(&self, search: &str, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64> {
+        let mut results = FxHashSet::default();
         let mut tries_to_visit = vec![(self, search)];
         'trie: while let Some((trie, search)) = tries_to_visit.pop() {
 
@@ -85,8 +86,8 @@ impl Trie4 {
 impl Trie for Trie4 {
     fn new() -> Self {
         Trie4{
-            children: HashMap::new(),
-            id_to_depth: HashMap::new(),
+            children: FxHashMap::default(),
+            id_to_depth: FxHashMap::default(),
         }
     }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
@@ -94,7 +95,7 @@ impl Trie for Trie4 {
             Self::add_single(self, id, insert)
         }
     }
-    fn search(&self, searches: Vec<&str>, filter: Option<&HashSet<u64>>) -> HashSet<u64> {
+    fn search(&self, searches: Vec<&str>, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64> {
         let mut searches = searches.iter();
         if let Some(first_search) = searches.next() {
             let mut result = Self::search_single(self, first_search, filter);
@@ -104,7 +105,7 @@ impl Trie for Trie4 {
             result
         }
         else {
-            HashSet::new()
+            FxHashSet::default()
         }
     }
     fn delete(&mut self, id: u64) {
@@ -122,8 +123,8 @@ impl Trie for Trie4 {
 //non-recursive, search-match pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Trie3 {
-    children: HashMap<char, Trie3>,
-    ids: HashSet<u64>,
+    children: FxHashMap<char, Trie3>,
+    ids: FxHashSet<u64>,
 }
 impl Trie3 {
     fn add_single(&mut self, id: u64, insert: &str) {
@@ -134,8 +135,8 @@ impl Trie3 {
             trie.ids.insert(id);
         }
     }
-    fn search_single(&self, search: &str, filter: Option<&HashSet<u64>>) -> HashSet<u64> {
-        let mut results = HashSet::new();
+    fn search_single(&self, search: &str, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64> {
+        let mut results = FxHashSet::default();
         let mut tries_to_visit = vec![(self, search)];
         'trie: while let Some((trie, search)) = tries_to_visit.pop() {
             if let Some(f) = filter { 
@@ -168,8 +169,8 @@ impl Trie3 {
 impl Trie for Trie3 {
     fn new() -> Self {
         Trie3{
-            children: HashMap::new(),
-            ids: HashSet::new(),
+            children: FxHashMap::default(),
+            ids: FxHashSet::default(),
         }
     }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
@@ -177,7 +178,7 @@ impl Trie for Trie3 {
             Self::add_single(self, id, insert)
         }
     }
-    fn search(&self, searches: Vec<&str>, filter: Option<&HashSet<u64>>) -> HashSet<u64> {
+    fn search(&self, searches: Vec<&str>, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64> {
         let mut searches = searches.iter();
         if let Some(first_search) = searches.next() {
             let mut result = Self::search_single(self, first_search, filter);
@@ -187,7 +188,7 @@ impl Trie for Trie3 {
             result
         }
         else {
-            HashSet::new()
+            FxHashSet::default()
         }
     }
     fn delete(&mut self, id: u64) {
@@ -205,8 +206,8 @@ impl Trie for Trie3 {
 //non-recursive, no tree pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Trie2 {
-    children: HashMap<char, Trie2>,
-    ids: HashSet<u64>,
+    children: FxHashMap<char, Trie2>,
+    ids: FxHashSet<u64>,
 }
 impl Trie2 {
     fn add_single(&mut self, id: u64, insert: &str) {
@@ -217,8 +218,8 @@ impl Trie2 {
             trie.ids.insert(id);
         }
     }
-    fn search_single(&self, search: &str) -> HashSet<u64> {
-        let mut results = HashSet::new();
+    fn search_single(&self, search: &str) -> FxHashSet<u64> {
+        let mut results = FxHashSet::default();
         let mut tries_to_visit = vec![(self, search)];
         while let Some((trie, search)) = tries_to_visit.pop() {
             if let Some(first_char) = search.chars().nth(0) {
@@ -239,8 +240,8 @@ impl Trie2 {
 impl Trie for Trie2 {
     fn new() -> Self {
         Trie2{
-            children: HashMap::new(),
-            ids: HashSet::new(),
+            children: FxHashMap::default(),
+            ids: FxHashSet::default(),
         }
     }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
@@ -248,12 +249,12 @@ impl Trie for Trie2 {
             Self::add_single(self, id, insert)
         }
     }
-    fn search(&self, searches: Vec<&str>, _filter: Option<&HashSet<u64>>) -> HashSet<u64> {
+    fn search(&self, searches: Vec<&str>, _filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64> {
         let mut matches = searches.iter().map(|search| Self::search_single(self, search));
         if let Some(first_match) = matches.next() {
             return matches.fold(first_match, |acc, next_match| acc.intersection(&next_match).cloned().collect())
         }
-        HashSet::new()
+        FxHashSet::default()
     }
     fn delete(&mut self, id: u64) {
         let mut tries_to_visit = vec![self];
@@ -270,8 +271,8 @@ impl Trie for Trie2 {
 //recursive, no tree pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Trie1 {
-    children: HashMap<char, Trie1>,
-    ids: HashSet<u64>,
+    children: FxHashMap<char, Trie1>,
+    ids: FxHashSet<u64>,
 }
 impl Trie1 {
     fn add_rec(trie: &mut Trie1, id: u64, insert: &str) {
@@ -281,9 +282,9 @@ impl Trie1 {
             Self::add_rec(trie, id, &insert[1..]);
         }
     }
-    fn search_rec(trie: &Trie1, search: &str) -> HashSet<u64> {
+    fn search_rec(trie: &Trie1, search: &str) -> FxHashSet<u64> {
         if let Some(first_char) = search.chars().nth(0) {
-            let mut results = HashSet::new();
+            let mut results = FxHashSet::default();
             for c in CHARS.iter() {
                 if let Some(trie) = trie.children.get(c) {
                     let new_search = if *c == first_char { &search[1..] } else { search };
@@ -307,8 +308,8 @@ impl Trie1 {
 impl Trie for Trie1 {
     fn new() -> Self {
         Trie1{
-            children: HashMap::new(),
-            ids: HashSet::new(),
+            children: FxHashMap::default(),
+            ids: FxHashSet::default(),
         }
     }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
@@ -316,12 +317,12 @@ impl Trie for Trie1 {
             Self::add_rec(self, id, insert)
         }
     }
-    fn search(&self, searches: Vec<&str>, _filter: Option<&HashSet<u64>>) -> HashSet<u64> {
+    fn search(&self, searches: Vec<&str>, _filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64> {
         let mut matches = searches.iter().map(|search| Self::search_rec(self, search));
         if let Some(first_match) = matches.next() {
             return matches.fold(first_match, |acc, next_match| acc.intersection(&next_match).cloned().collect())
         }
-        HashSet::new()
+        FxHashSet::default()
     }
     fn delete(&mut self, id: u64) {
         Self::delete_rec(self, id)

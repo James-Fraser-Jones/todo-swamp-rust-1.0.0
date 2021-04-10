@@ -1,7 +1,23 @@
-cargo build --release (don't forget to set the debug release profile flags in Cargo.toml)
-sudo perf record -g ./target/release/application tests/100k/benchmark_100k (runs program with call-stack profiling enabled)
-sudo perf report -g `graph, 0.5, caller` (reports collected call-graph information with filter of 0.5 to remove noisy calls, navigate with arrowkeys '+' and 'a')
-sudo perf annotate (produces annotated? assembly for application)
+(don't forget to set the debug release profile flags in Cargo.toml)
+cargo build --release
 
-cargo bench (release build and run of criterion benchmarks, running record of statistical confidence intervals of wall time for all benchmarks stored in target/criterion)
+(runs program with call-stack profiling enabled)
+sudo perf record -g ./target/release/application tests/100k/benchmark_100k 
 
+(reports collected call-graph information with filter of 0.5 to remove noisy calls, navigate with arrowkeys '+' and 'a')
+sudo perf report -g `graph, 0.5, caller` 
+
+(produces annotated? assembly for application)
+sudo perf annotate
+
+(creates a flame graph from data recorded by perf)
+sudo perf script | sudo ~/FlameGraph-master/stackcollapse-perf.pl | sudo ~/FlameGraph-master/flamegraph.pl > flame.svg
+
+(tests whether files produced by "test_run" are equal, as a santiy check, 0 means they are equal)
+cmp tests/Ak/benchmark_Ak_N_test.out tests/Ak/benchmark_Ak_N_testB.out ; echo $?
+
+(run benchmarks)
+cargo bench 
+
+CTRL->K->0 (VSCode: Collapse all code sections)
+CTRL->K->J (VSCode: Expand all code sections)
