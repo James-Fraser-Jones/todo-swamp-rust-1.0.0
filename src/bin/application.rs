@@ -10,14 +10,22 @@ pub fn main() -> io::Result<()> {
     // let args: Vec<String> = std::env::args().collect();
     // let file_name = &args[1];
 
-    //compare all implementations over 5 seconds
-    for i in 1..=4 {
-        let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 5000)?;
-        let trie1 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie1>::new(), 5000)?;
-        let trie2 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie2>::new(), 5000)?;
-        let trie3 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie3>::new(), 5000)?;
-        let trie4 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie4>::new(), 5000)?;
-        println!("Naive: {}, Trie1: {}, Trie2: {}, Trie3: {}, Trie4: {}", naive, trie1, trie2, trie3, trie4);
+    // //compare all implementations over 5 seconds
+    // for i in 1..=4 {
+    //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 5000)?;
+    //     let naive2 = benchmark_run(&format!("tests/test{}", i), TodoList2::new(), 5000)?;
+    //     let trie1 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie1>::new(), 5000)?;
+    //     let trie2 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie2>::new(), 5000)?;
+    //     let trie3 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie3>::new(), 5000)?;
+    //     let trie4 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie4>::new(), 5000)?;
+    //     println!("Naive: {}, Naive2: {}, Trie1: {}, Trie2: {}, Trie3: {}, Trie4: {}", naive, naive2, trie1, trie2, trie3, trie4);
+    // }
+
+    // //compare just Naive implementations, over 30 seconds
+    for i in 1..=2 {
+        let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 30000)?;
+        let naive2 = benchmark_run(&format!("tests/test{}", i), TodoList2::new(), 30000)?;
+        println!("Naive: {}, Naive2: {}", naive, naive2);
     }
     
     // //compare just Naive and Trie4 implementations, over 60 seconds

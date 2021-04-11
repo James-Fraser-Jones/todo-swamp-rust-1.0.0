@@ -3,8 +3,7 @@ use rustc_hash::{FxHashSet, FxHashMap};
 
 const CHARS: [char; 27] = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','-'];
 
-pub trait Trie {
-    fn new() -> Self; 
+pub trait Trie { 
     fn add(&mut self, id: u64, inserts: Vec<&str>);
     fn search(&self, searches: Vec<&str>, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64>;
     fn delete(&mut self, id: u64);
@@ -17,6 +16,12 @@ pub struct Trie4 {
     id_to_depth: FxHashMap<u64, usize>,
 }
 impl Trie4 {
+    fn new() -> Self {
+        Trie4{
+            children: FxHashMap::default(),
+            id_to_depth: FxHashMap::default(),
+        }
+    }
     fn add_single(&mut self, id: u64, insert: &str) {
         let mut trie = self;
         let mut new_depth = insert.len();
@@ -84,12 +89,6 @@ impl Trie4 {
     }
 }
 impl Trie for Trie4 {
-    fn new() -> Self {
-        Trie4{
-            children: FxHashMap::default(),
-            id_to_depth: FxHashMap::default(),
-        }
-    }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
         for insert in inserts {
             Self::add_single(self, id, insert)
@@ -119,6 +118,11 @@ impl Trie for Trie4 {
         }
     }
 }
+impl Default for Trie4 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 //non-recursive, search-match pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -127,6 +131,12 @@ pub struct Trie3 {
     ids: FxHashSet<u64>,
 }
 impl Trie3 {
+    fn new() -> Self {
+        Trie3{
+            children: FxHashMap::default(),
+            ids: FxHashSet::default(),
+        }
+    }
     fn add_single(&mut self, id: u64, insert: &str) {
         let mut trie = self;
         trie.ids.insert(id);
@@ -167,12 +177,6 @@ impl Trie3 {
     }
 }
 impl Trie for Trie3 {
-    fn new() -> Self {
-        Trie3{
-            children: FxHashMap::default(),
-            ids: FxHashSet::default(),
-        }
-    }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
         for insert in inserts {
             Self::add_single(self, id, insert)
@@ -202,6 +206,11 @@ impl Trie for Trie3 {
         }
     }
 }
+impl Default for Trie3 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 //non-recursive, no tree pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -210,6 +219,12 @@ pub struct Trie2 {
     ids: FxHashSet<u64>,
 }
 impl Trie2 {
+    fn new() -> Self {
+        Trie2{
+            children: FxHashMap::default(),
+            ids: FxHashSet::default(),
+        }
+    }
     fn add_single(&mut self, id: u64, insert: &str) {
         let mut trie = self;
         trie.ids.insert(id);
@@ -238,12 +253,6 @@ impl Trie2 {
     }
 }
 impl Trie for Trie2 {
-    fn new() -> Self {
-        Trie2{
-            children: FxHashMap::default(),
-            ids: FxHashSet::default(),
-        }
-    }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
         for insert in inserts {
             Self::add_single(self, id, insert)
@@ -267,6 +276,11 @@ impl Trie for Trie2 {
         }
     }
 }
+impl Default for Trie2 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 //recursive, no tree pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -275,6 +289,12 @@ pub struct Trie1 {
     ids: FxHashSet<u64>,
 }
 impl Trie1 {
+    fn new() -> Self {
+        Trie1{
+            children: FxHashMap::default(),
+            ids: FxHashSet::default(),
+        }
+    }
     fn add_rec(trie: &mut Trie1, id: u64, insert: &str) {
         trie.ids.insert(id);
         if let Some(first_char) = insert.chars().nth(0) {
@@ -306,12 +326,6 @@ impl Trie1 {
     }
 }
 impl Trie for Trie1 {
-    fn new() -> Self {
-        Trie1{
-            children: FxHashMap::default(),
-            ids: FxHashSet::default(),
-        }
-    }
     fn add(&mut self, id: u64, inserts: Vec<&str>) {
         for insert in inserts {
             Self::add_rec(self, id, insert)
@@ -326,5 +340,10 @@ impl Trie for Trie1 {
     }
     fn delete(&mut self, id: u64) {
         Self::delete_rec(self, id)
+    }
+}
+impl Default for Trie1 {
+    fn default() -> Self {
+        Self::new()
     }
 }

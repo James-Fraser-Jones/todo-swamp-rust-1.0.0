@@ -142,42 +142,35 @@ pub trait TodoLister {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TodoList {
-    top_index: Index,
     items: Vec<TodoItem>,
 }
 impl TodoList {
     pub fn new() -> Self {
         TodoList {
-            top_index: Index::new(0),
             items: Vec::new(),
         }
     }
     fn match_subsequence(sequence: &str, subsequence: &str) -> bool {
-        let l = subsequence.len();
-        if l == 0 { //prevent unsafe memory access if subsequence ended up being empty slice 
-            return true //empty string is technically a subsequence of every string
-        }
-        let sub = subsequence.as_bytes();
-        let mut i = 0;
-        for b in sequence.as_bytes() {
-            unsafe { //safe because termination is guaranteed before i gets too large
-                if b == sub.get_unchecked(i) {
-                    i = i + 1;
-                    if i == l {
-                        return true
-                    }
+        let mut sub_index = 0;
+        let sub_bytes = subsequence.as_bytes(); //this only splits on exact characters when we're using ASCII, not unicode
+        for byte in sequence.as_bytes().iter() {
+            if sub_index == subsequence.len() {
+                return true
+            }
+            unsafe { //safe because termination is guaranteed before index gets too large
+                if byte == sub_bytes.get_unchecked(sub_index) {
+                    sub_index += 1;
                 }
             }
         }
-        false
+        sub_index == subsequence.len()
     }
 }
 impl TodoLister for TodoList {
     fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
-        let item = TodoItem::new(self.top_index, description, tags, false);
+        let item = TodoItem::new(Index::new(self.items.len() as u64), description, tags, false);
         let item_c = item.clone();
         self.items.push(item);
-        self.top_index = Index::new(self.top_index.value() + 1);
         item_c
     }
     fn done_with_index(&mut self, idx: Index) -> Option<Index> {
@@ -221,31 +214,116 @@ impl TodoLister for TodoList {
     }
 }
 
+//with previous match filtering and length filtering
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TriedoList<T: Trie> {
-    top_index: Index,
+pub struct TodoList2 {
+    items: Vec<TodoItem>,
+}
+impl TodoList2 {
+    pub fn new() -> Self {
+        TodoList2 {
+            items: Vec::new(),
+        }
+    }
+    fn search_filter(&self, indices: Vec<usize>, search: SearchWordOrTag) -> Vec<usize> {
+        let subsequence;
+        let is_word;
+        let mut filtered_indices = Vec::new();
+        match search {
+            SearchWordOrTag::RawWord(w) => {
+                subsequence = w;
+                is_word = true;
+            },
+            SearchWordOrTag::RawTag(t) => {
+                subsequence = t;
+                is_word = false;
+            },
+        }
+        for index in indices {
+            let sequences: Vec<&String> = if is_word { 
+                self.items[index].description.iter().map(|Word(w)| w).collect()
+            } else {
+                self.items[index].tags.iter().map(|Tag(t)| t).collect()
+            };
+            let mut matched = false;
+            for sequence in sequences {
+                if Self::match_subsequence(sequence, &subsequence) {
+                    matched = true;
+                    break
+                }
+            }
+            if matched {
+                filtered_indices.push(index);
+            }
+        }
+        filtered_indices
+    }
+    fn match_subsequence(sequence: &str, subsequence: &str) -> bool {
+        let mut sub_index = 0;
+        let sub_bytes = subsequence.as_bytes(); //this only splits on exact characters when we're using ASCII, not unicode
+        for (seq_index, byte) in sequence.as_bytes().iter().enumerate() {
+            if sub_index == subsequence.len() {
+                return true
+            }
+            if sequence.len() - seq_index < subsequence.len() - sub_index { //length checking added here
+                return false
+            }
+            unsafe { //safe because termination is guaranteed before index gets too large
+                if byte == sub_bytes.get_unchecked(sub_index) {
+                    sub_index += 1;
+                }
+            }
+        }
+        sub_index == subsequence.len()
+    }
+}
+impl TodoLister for TodoList2 {
+    fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
+        let item = TodoItem::new(Index::new(self.items.len() as u64), description, tags, false);
+        let item_c = item.clone();
+        self.items.push(item);
+        item_c
+    }
+    fn done_with_index(&mut self, idx: Index) -> Option<Index> {
+        if let Ok(n) = self.items.binary_search_by_key(&idx, |item| item.index) {
+            self.items[n].done = true;
+            Some(idx)
+        }
+        else {
+            None
+        }
+    }
+    fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
+        let mut indices = (0..self.items.len()).collect();
+        for search in sp.params {
+            indices = self.search_filter(indices, search);
+        }
+        indices.iter().map(|index| &self.items[*index]).collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriedoList<T: Trie + Default> {
     items: Vec<TodoItem>,
     words: T,
     tags: T,
 }
-impl<T: Trie> TriedoList<T> {
+impl<T: Trie + Default> TriedoList<T> {
     pub fn new() -> Self {
         TriedoList {
-            top_index: Index::new(0),
             items: Vec::new(),
-            words: T::new(),
-            tags: T::new(),
+            words: T::default(),
+            tags: T::default(),
         }
     }
 }
-impl<T: Trie> TodoLister for TriedoList<T> {
+impl<T: Trie + Default> TodoLister for TriedoList<T> {
     fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
-        self.words.add(self.top_index.value(), description.iter().map(|Word(s)| &s[..]).collect());
-        self.tags.add(self.top_index.value(), tags.iter().map(|Tag(t)| &t[..]).collect());
-        let item = TodoItem::new(self.top_index, description, tags, false);
+        self.words.add(self.items.len() as u64, description.iter().map(|Word(s)| &s[..]).collect());
+        self.tags.add(self.items.len() as u64, tags.iter().map(|Tag(t)| &t[..]).collect());
+        let item = TodoItem::new(Index::new(self.items.len() as u64), description, tags, false);
         let item_c = item.clone();
         self.items.push(item);
-        self.top_index = Index::new(self.top_index.value() + 1);
         item_c
     }
     fn done_with_index(&mut self, idx: Index) -> Option<Index> {
