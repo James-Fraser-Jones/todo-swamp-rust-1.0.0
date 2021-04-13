@@ -19,5 +19,8 @@ cmp tests/Ak/benchmark_Ak_N_test.out tests/Ak/benchmark_Ak_N_testB.out ; echo $?
 (run benchmarks)
 cargo bench 
 
+(run callgrind on executable to generate stats file for analyzing with kcachegrind gui app)
+valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes --simulate-cache=yes ./target/release/application
+
 CTRL->K->0 (VSCode: Collapse all code sections)
 CTRL->K->J (VSCode: Expand all code sections)

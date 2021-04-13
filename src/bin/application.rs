@@ -21,12 +21,12 @@ pub fn main() -> io::Result<()> {
     //     println!("Naive: {}, Naive2: {}, Trie1: {}, Trie2: {}, Trie3: {}, Trie4: {}", naive, naive2, trie1, trie2, trie3, trie4);
     // }
 
-    // //compare just Naive implementations, over 30 seconds
-    for i in 1..=2 {
-        let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 30000)?;
-        let naive2 = benchmark_run(&format!("tests/test{}", i), TodoList2::new(), 30000)?;
-        println!("Naive: {}, Naive2: {}", naive, naive2);
-    }
+    // // //compare just Naive implementations, over 30 seconds
+    // for i in 1..=2 {
+    //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 30000)?;
+    //     let naive2 = benchmark_run(&format!("tests/test{}", i), TodoList2::new(), 30000)?;
+    //     println!("Naive: {}, Naive2: {}", naive, naive2);
+    // }
     
     // //compare just Naive and Trie4 implementations, over 60 seconds
     // for i in 1..=2 {
@@ -46,6 +46,12 @@ pub fn main() -> io::Result<()> {
     //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 10000)?;
     //     println!("{}", naive);
     // }
+
+    //testing just Naive2
+    for i in 1..=4 {
+        let naive2 = benchmark_run(&format!("tests/test{}", i), TodoList2::new(), 5000)?;
+        println!("{}", naive2);
+    }
 
     Ok(())
 }
