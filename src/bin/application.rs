@@ -10,47 +10,21 @@ pub fn main() -> io::Result<()> {
     // let args: Vec<String> = std::env::args().collect();
     // let file_name = &args[1];
 
-    // //compare all implementations over 5 seconds
-    // for i in 1..=4 {
-    //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 5000)?;
-    //     let naive2 = benchmark_run(&format!("tests/test{}", i), TodoList2::new(), 5000)?;
-    //     let trie1 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie1>::new(), 5000)?;
-    //     let trie2 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie2>::new(), 5000)?;
-    //     let trie3 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie3>::new(), 5000)?;
-    //     let trie4 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie4>::new(), 5000)?;
-    //     println!("Naive: {}, Naive2: {}, Trie1: {}, Trie2: {}, Trie3: {}, Trie4: {}", naive, naive2, trie1, trie2, trie3, trie4);
+    // //run_count
+    // for i in 1..=A {
+    //     benchmark_run_count(&format!("tests/test{}", i), B::new(), C)?;
+    //     println!("Done: {}", i);
     // }
 
-    // // //compare just Naive implementations, over 30 seconds
-    // for i in 1..=2 {
-    //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 30000)?;
-    //     let naive2 = benchmark_run(&format!("tests/test{}", i), TodoList2::new(), 30000)?;
-    //     println!("Naive: {}, Naive2: {}", naive, naive2);
-    // }
-    
-    // //compare just Naive and Trie4 implementations, over 60 seconds
-    // for i in 1..=2 {
-    //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 60000)?;
-    //     let trie4 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie4>::new(), 60000)?;
-    //     println!("Naive: {}, Trie4: {}", naive, trie4);
+    // //run_timed
+    // for i in 1..=A {
+    //     let commands_processed = benchmark_run_timed(&format!("tests/test{}", i), B::new(), C)?;
+    //     println!("{}", commands_processed);
     // }
 
-    // //testing just Trie4
-    // for i in 1..=5 {
-    //     let trie4 = benchmark_run(&format!("tests/test{}", i), TriedoList::<Trie4>::new(), 10000)?;
-    //     println!("{}", trie4);
-    // }
-
-    // //testing just Naive
-    // for i in 1..=5 {
-    //     let naive = benchmark_run(&format!("tests/test{}", i), TodoList::new(), 10000)?;
-    //     println!("{}", naive);
-    // }
-
-    //testing just Naive2
-    for i in 1..=4 {
-        let naive2 = benchmark_run(&format!("tests/test{}", i), TodoList2::new(), 5000)?;
-        println!("{}", naive2);
+    for i in 1..=5 {
+        benchmark_run_count(&format!("tests/test{}", i), TodoList2::new(), 10000)?;
+        println!("Done: {}", i);
     }
 
     Ok(())
@@ -91,8 +65,8 @@ fn _file_run<T: TodoLister>(file_name: &str, append: &str, mut tl: T) -> io::Res
     Ok(())
 }
 
-//returns number of responses (search results count as a single response)
-fn benchmark_run<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u128) -> io::Result<usize> {
+//returns number of responses (multi-line search results count as a single response)
+fn _benchmark_run_timed<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u128) -> io::Result<usize> {
     let file_in = fs::File::open(format!("{}.in", file_name))?;
     let mut lines_in = io::BufReader::new(file_in).lines();
     let mut count = 0;
@@ -111,6 +85,26 @@ fn benchmark_run<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u128) ->
         }
     }
     Ok(count)
+}
+
+fn benchmark_run_count<T: TodoLister>(file_name: &str, mut tl: T, num_commands: usize) -> io::Result<()> {
+    let file_in = fs::File::open(format!("{}.in", file_name))?;
+    let mut lines_in = io::BufReader::new(file_in).lines();
+    let mut count = 0;
+    if let Some(Ok(_s)) = lines_in.next() {
+        for line in lines_in {
+            if count >= num_commands {
+                break
+            }
+            if let Ok(l) = line {
+                if let Some(result) = runner::run_line(&l, &mut tl) {
+                    black_box(result);
+                    count += 1;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn _test_run<T: TodoLister>(file_name: &str, append: &str, mut tl: T, num_lines: usize) -> io::Result<()> {

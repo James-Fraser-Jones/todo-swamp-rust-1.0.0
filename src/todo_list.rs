@@ -1,5 +1,6 @@
 use std::fmt;
 use std::cmp::Ordering;
+use std::mem;
 
 use crate::*;
 
@@ -214,7 +215,7 @@ impl TodoLister for TodoList {
     }
 }
 
-//with previous match filtering and length filtering
+//with previous match filtering
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TodoList2 {
     items: Vec<TodoItem>,
@@ -225,49 +226,64 @@ impl TodoList2 {
             items: Vec::new(),
         }
     }
-    fn search_filter(&self, indices: Vec<usize>, search: SearchWordOrTag) -> Vec<usize> {
-        let subsequence;
-        let is_word;
-        let mut filtered_indices = Vec::new();
+    fn search_initial<'a>(&'a self, items: &mut Vec<&'a TodoItem>, search: SearchWordOrTag) {
         match search {
-            SearchWordOrTag::RawWord(w) => {
-                subsequence = w;
-                is_word = true;
-            },
-            SearchWordOrTag::RawTag(t) => {
-                subsequence = t;
-                is_word = false;
-            },
-        }
-        for index in indices {
-            let sequences: Vec<&String> = if is_word { 
-                self.items[index].description.iter().map(|Word(w)| w).collect()
-            } else {
-                self.items[index].tags.iter().map(|Tag(t)| t).collect()
-            };
-            let mut matched = false;
-            for sequence in sequences {
-                if Self::match_subsequence(sequence, &subsequence) {
-                    matched = true;
-                    break
+            SearchWordOrTag::RawWord(subsequence) => {
+                for item in &self.items {
+                    for Word(sequence) in &item.description {
+                        if Self::match_subsequence(sequence, &subsequence) {
+                            items.push(item);
+                            break
+                        }
+                    }
                 }
-            }
-            if matched {
-                filtered_indices.push(index);
-            }
+            },
+            SearchWordOrTag::RawTag(subsequence) => {
+                for item in &self.items {
+                    for Tag(sequence) in &item.tags {
+                        if Self::match_subsequence(sequence, &subsequence) {
+                            items.push(item);
+                            break
+                        }
+                    }
+                }
+            },
         }
-        filtered_indices
+    }
+    fn search_filter<'a>(items: &Vec<&'a TodoItem>, filtered_items: &mut Vec<&'a TodoItem>, search: SearchWordOrTag) {
+        match search {
+            SearchWordOrTag::RawWord(subsequence) => {
+                for item in items {
+                    for Word(sequence) in &item.description {
+                        if Self::match_subsequence(sequence, &subsequence) {
+                            filtered_items.push(item);
+                            break
+                        }
+                    }
+                }
+            },
+            SearchWordOrTag::RawTag(subsequence) => {
+                for item in items {
+                    for Tag(sequence) in &item.tags {
+                        if Self::match_subsequence(sequence, &subsequence) {
+                            filtered_items.push(item);
+                            break
+                        }
+                    }
+                }
+            },
+        }
     }
     fn match_subsequence(sequence: &str, subsequence: &str) -> bool {
         let mut sub_index = 0;
         let sub_bytes = subsequence.as_bytes(); //this only splits on exact characters when we're using ASCII, not unicode
-        for (seq_index, byte) in sequence.as_bytes().iter().enumerate() {
+        for byte in sequence.as_bytes().iter() {
             if sub_index == subsequence.len() {
                 return true
             }
-            if sequence.len() - seq_index < subsequence.len() - sub_index { //length checking added here
-                return false
-            }
+            // if sequence.len() - seq_index < subsequence.len() - sub_index { //length checking added here (seems to make it slightly slower overall)
+            //     return false
+            // }
             unsafe { //safe because termination is guaranteed before index gets too large
                 if byte == sub_bytes.get_unchecked(sub_index) {
                     sub_index += 1;
@@ -294,11 +310,19 @@ impl TodoLister for TodoList2 {
         }
     }
     fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
-        let mut indices = (0..self.items.len()).collect();
-        for search in sp.params {
-            indices = self.search_filter(indices, search);
+        let mut params = sp.params.into_iter();
+        if let Some(first_param) = params.next() {
+            let mut items = Vec::new();
+            self.search_initial(&mut items, first_param);
+            let mut filtered_items = Vec::new();
+            for param in params {
+                Self::search_filter(&items, &mut filtered_items, param);
+                mem::swap(&mut items, &mut filtered_items);
+                filtered_items.clear();
+            }
+            return items
         }
-        indices.iter().map(|index| &self.items[*index]).collect()
+        Vec::new()
     }
 }
 
