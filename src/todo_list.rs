@@ -233,6 +233,9 @@ impl TodoList2 {
         match search {
             SearchWordOrTag::RawWord(subsequence) => {
                 for item in &self.items {
+                    if item.done {
+                        continue
+                    }
                     for Word(sequence) in &item.description {
                         if Self::match_subsequence(&sequence, &subsequence) {
                             item_refs.push(item);
@@ -243,6 +246,9 @@ impl TodoList2 {
             },
             SearchWordOrTag::RawTag(subsequence) => {
                 for item in &self.items {
+                    if item.done {
+                        continue
+                    }
                     for Tag(sequence) in &item.tags {
                         if Self::match_subsequence(&sequence, &subsequence) {
                             item_refs.push(item);
@@ -257,6 +263,9 @@ impl TodoList2 {
         match search {
             SearchWordOrTag::RawWord(subsequence) => {
                 refs.retain(|item| {
+                    if item.done {
+                        return false
+                    }
                     for Word(sequence) in &item.description {
                         if Self::match_subsequence(&sequence, &subsequence) {
                             return true
@@ -267,6 +276,9 @@ impl TodoList2 {
             },
             SearchWordOrTag::RawTag(subsequence) => {
                 refs.retain(|item| {
+                    if item.done {
+                        return false
+                    }
                     for Tag(sequence) in &item.tags {
                         if Self::match_subsequence(&sequence, &subsequence) {
                             return true

@@ -14,7 +14,7 @@ sudo perf annotate
 sudo perf script | sudo ~/FlameGraph-master/stackcollapse-perf.pl | sudo ~/FlameGraph-master/flamegraph.pl > flame.svg
 
 (tests whether files produced by "test_run" are equal, as a santiy check, 0 means they are equal)
-cmp tests/Ak/benchmark_Ak_N_test.out tests/Ak/benchmark_Ak_N_testB.out ; echo $?
+cmp tests/correct/test1_naive.out tests/correct/test1_naive2.out ; echo $?
 
 (run benchmarks)
 cargo bench 
