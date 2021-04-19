@@ -23,8 +23,8 @@ pub fn main() -> io::Result<()> {
     // }
 
     for i in 1..=5 {
-        benchmark_run_count(&format!("tests/test{}", i), TodoList2::new(), 10000)?;
-        println!("Done: {}", i);
+        let commands_processed = benchmark_run_timed(&format!("tests/test{}", i), TodoList2::new(), 10000)?;
+        println!("{}", commands_processed);
     }
 
     Ok(())
@@ -66,7 +66,7 @@ fn _file_run<T: TodoLister>(file_name: &str, append: &str, mut tl: T) -> io::Res
 }
 
 //returns number of responses (multi-line search results count as a single response)
-fn _benchmark_run_timed<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u128) -> io::Result<usize> {
+fn benchmark_run_timed<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u128) -> io::Result<usize> {
     let file_in = fs::File::open(format!("{}.in", file_name))?;
     let mut lines_in = io::BufReader::new(file_in).lines();
     let mut count = 0;
@@ -87,7 +87,7 @@ fn _benchmark_run_timed<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u
     Ok(count)
 }
 
-fn benchmark_run_count<T: TodoLister>(file_name: &str, mut tl: T, num_commands: usize) -> io::Result<()> {
+fn _benchmark_run_count<T: TodoLister>(file_name: &str, mut tl: T, num_commands: usize) -> io::Result<()> {
     let file_in = fs::File::open(format!("{}.in", file_name))?;
     let mut lines_in = io::BufReader::new(file_in).lines();
     let mut count = 0;

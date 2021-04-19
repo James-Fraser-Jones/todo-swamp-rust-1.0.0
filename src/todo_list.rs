@@ -1,5 +1,6 @@
 use std::fmt;
 use std::cmp::Ordering;
+use std::cell::RefCell;
 use std::mem;
 
 use crate::*;
@@ -219,20 +220,22 @@ impl TodoLister for TodoList {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TodoList2 {
     items: Vec<TodoItem>,
+    item_refs: RefCell<Option<Vec<usize>>>,
 }
 impl TodoList2 {
     pub fn new() -> Self {
         TodoList2 {
             items: Vec::new(),
+            item_refs: RefCell::new(Some(Vec::new())),
         }
     }
-    fn search_initial<'a>(&'a self, items: &mut Vec<&'a TodoItem>, search: SearchWordOrTag) {
+    fn search_initial<'a>(&'a self, item_refs: &mut Vec<&'a TodoItem>, search: SearchWordOrTag) {
         match search {
             SearchWordOrTag::RawWord(subsequence) => {
                 for item in &self.items {
                     for Word(sequence) in &item.description {
-                        if Self::match_subsequence(sequence, &subsequence) {
-                            items.push(item);
+                        if Self::match_subsequence(&sequence, &subsequence) {
+                            item_refs.push(item);
                             break
                         }
                     }
@@ -241,8 +244,8 @@ impl TodoList2 {
             SearchWordOrTag::RawTag(subsequence) => {
                 for item in &self.items {
                     for Tag(sequence) in &item.tags {
-                        if Self::match_subsequence(sequence, &subsequence) {
-                            items.push(item);
+                        if Self::match_subsequence(&sequence, &subsequence) {
+                            item_refs.push(item);
                             break
                         }
                     }
@@ -250,27 +253,27 @@ impl TodoList2 {
             },
         }
     }
-    fn search_filter<'a>(items: &Vec<&'a TodoItem>, filtered_items: &mut Vec<&'a TodoItem>, search: SearchWordOrTag) {
+    fn search_filter(self: &TodoList2, refs: &mut Vec<&TodoItem>, search: SearchWordOrTag) {
         match search {
             SearchWordOrTag::RawWord(subsequence) => {
-                for item in items {
+                refs.retain(|item| {
                     for Word(sequence) in &item.description {
-                        if Self::match_subsequence(sequence, &subsequence) {
-                            filtered_items.push(item);
-                            break
+                        if Self::match_subsequence(&sequence, &subsequence) {
+                            return true
                         }
                     }
-                }
+                    false
+                })
             },
             SearchWordOrTag::RawTag(subsequence) => {
-                for item in items {
+                refs.retain(|item| {
                     for Tag(sequence) in &item.tags {
-                        if Self::match_subsequence(sequence, &subsequence) {
-                            filtered_items.push(item);
-                            break
+                        if Self::match_subsequence(&sequence, &subsequence) {
+                            return true
                         }
                     }
-                }
+                    false
+                })
             },
         }
     }
@@ -293,7 +296,7 @@ impl TodoList2 {
         sub_index == subsequence.len()
     }
 }
-impl TodoLister for TodoList2 {
+impl<'a> TodoLister for TodoList2 {
     fn push(&mut self, description: Vec<Word>, tags: Vec<Tag>) -> TodoItem {
         let item = TodoItem::new(Index::new(self.items.len() as u64), description, tags, false);
         let item_c = item.clone();
@@ -310,19 +313,29 @@ impl TodoLister for TodoList2 {
         }
     }
     fn search(&self, sp: SearchParams) -> Vec<&TodoItem> {
+        //get item_refs
+        let entry: &mut Option<Vec<usize>> = &mut self.item_refs.borrow_mut();
+        let item_refs: Vec<usize> = mem::take(entry).unwrap();
+        let mut item_refs: Vec<&TodoItem> = item_refs.into_iter().filter_map(|_| None).collect(); //should not cause a realloc
+
+        //add and filter references
         let mut params = sp.params.into_iter();
         if let Some(first_param) = params.next() {
-            let mut items = Vec::new();
-            self.search_initial(&mut items, first_param);
-            let mut filtered_items = Vec::new();
+            self.search_initial(&mut item_refs, first_param);
             for param in params {
-                Self::search_filter(&items, &mut filtered_items, param);
-                mem::swap(&mut items, &mut filtered_items);
-                filtered_items.clear();
+                self.search_filter(&mut item_refs, param);
             }
-            return items
         }
-        Vec::new()
+
+        //save results
+        let results = item_refs.to_owned();
+
+        //put item_refs back
+        let item_refs: Vec<usize> = item_refs.into_iter().filter_map(|_| None).collect();
+        *entry = Some(item_refs);
+
+        //return results
+        results
     }
 }
 
