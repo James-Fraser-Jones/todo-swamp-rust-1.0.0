@@ -1,19 +1,17 @@
 use std::collections::{HashMap, HashSet};
 use arrayvec::ArrayVec;
-use std::fmt::Display;
 
 type Level = usize;
 type Position = usize;
 type Id = usize;
 
+type SigString = ArrayVec<Sigma, M>;
 struct WrapStr<'a>(&'a str);
 struct WrapString(String);
-
-type SigString = ArrayVec<Sigma, m>;
 impl From<WrapStr<'_>> for SigString {
     fn from(WrapStr(s): WrapStr) -> Self {
         let mut sig_string = ArrayVec::new();
-        for c in s.chars().take(m) {
+        for c in s.chars().take(M) {
             sig_string.push(match c {
                 'a' => Sigma::A,
                 'b' => Sigma::B,
@@ -43,8 +41,8 @@ enum Sigma { //TERMINOLOGY: alphabet
     A, B, C,
 }
 
-const k: usize = 3; //TERMINOLOGY: number of characters in alphabet
-const m: usize = 10; //TERMINOLOGY: max length of string
+const K: usize = 3; //TERMINOLOGY: number of characters in alphabet
+const M: usize = 10; //TERMINOLOGY: max length of string
 
 //Implementation of Trie algorithm from "Efficient Subsequence Search for Databases"
 //https://link.springer.com/chapter/10.1007/978-3-642-38562-9_45
@@ -72,7 +70,7 @@ impl Essd {
     }
     fn search(&self, query: SigString) -> Vec<(Id, SigString)> {
         let l = query.len(); //TERMINOLOGY: length of given query (l <= m)
-        let ids = self.trie.search(query);
+        let ids = self.trie.search(&query);
         let mut results = Vec::new();
         for id in ids {
             let val: SigString = (*self.table.get(&id).unwrap()).to_owned();
@@ -101,10 +99,10 @@ impl Node {
     fn new() -> Self {
         unimplemented!()
     }
-    fn insert(&mut self, id: Id, attribute: SigString) {
+    fn insert(&mut self, id: Id, attribute: &[Sigma]) {
         unimplemented!()
     }
-    fn search(&self, query: SigString) -> HashSet<Id> {
+    fn search(&self, query: &[Sigma]) -> HashSet<Id> {
         unimplemented!()
     }
     fn delete(&mut self, id: Id) {
