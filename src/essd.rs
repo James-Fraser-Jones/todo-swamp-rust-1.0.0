@@ -49,13 +49,14 @@ const M: usize = 10; //TERMINOLOGY: max length of string
 struct Essd { 
     table: HashMap<Id, SigString>,
     trie: Box<Node>, //box to ensure all nodes are heap allocated
+    //linked_ids: ...
 }
 impl Essd {
     fn n(&self) -> usize { //TERMINOLOGY: number of tuples in table
         self.table.len()
     }
     fn node(&self, x: Position, y: Level) -> Option<&Node> { //TERMINOLOGY: refers to node at position x, level y
-        panic!() //awkward to implement (and technically unnecessary)
+        panic!() //awkward to implement (and probably unnecessary?)
     }
 }
 impl Essd {
@@ -65,7 +66,7 @@ impl Essd {
             trie: Box::new(Node::new()),
         }
     }
-    fn insert(&mut self, id: Id, attribute: SigString) {
+    fn insert(&mut self, id: Id, attribute: SigString) { //does not support update (i.e. id should not already exist)
         unimplemented!()
     }
     fn search(&self, query: SigString) -> Vec<(Id, SigString)> {
@@ -85,21 +86,21 @@ impl Essd {
 
 struct Node {
     children: HashMap<Sigma, Node>,
-    start_tuple_id: Id,
-    end_tuple_id: Id,
-    label: Sigma,
+    start_tuple: *mut Id,
+    end_tuple: *mut Id,
+    label: Sigma,           //Defaults to A for root node (should never be used at root node)
     first_occour: HashMap<Sigma, HashMap<Level, *mut Node>>,
     last_occour: HashMap<Sigma, HashMap<Level, *mut Node>>,
-    level: Level,
+    level: Level,           //0 for root node
     next: *mut Node,
-    position: Position,
+    position: Position,     //0 for root and first-inserted node at each level
     parent: *mut Node,
 }
 impl Node {
     fn new() -> Self {
         unimplemented!()
     }
-    fn insert(&mut self, id: Id, attribute: &[Sigma]) {
+    fn insert(&mut self, id: Id, attribute: &[Sigma]) { //does not support update (i.e. id should not already exist)
         unimplemented!()
     }
     fn search(&self, query: &[Sigma]) -> HashSet<Id> {
