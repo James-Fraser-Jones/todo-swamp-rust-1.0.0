@@ -3,6 +3,7 @@ pub mod query;
 pub mod runner;
 pub mod todo_list;
 pub mod trie;
+pub mod essd;
 
 pub use todo_list::*;
 pub use query::*;

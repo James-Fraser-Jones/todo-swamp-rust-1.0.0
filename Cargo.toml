@@ -17,6 +17,7 @@ harness = false
 [dependencies]
 rand = "0.7"
 rustc-hash = "1.1.0"
+arrayvec = "0.7.0"
 
 [dependencies.nom]
 version = "5"

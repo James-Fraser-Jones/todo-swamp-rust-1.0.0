@@ -1,5 +1,8 @@
-//use std::collections::{HashMap, HashSet};
-use rustc_hash::{FxHashSet, FxHashMap};
+use rustc_hash::{FxHashSet, FxHashMap, FxHasher};
+
+// use std::ptr;
+// use std::collections::HashMap;
+// use core::hash::BuildHasherDefault;
 
 const CHARS: [char; 27] = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','-'];
 
@@ -8,6 +11,83 @@ pub trait Trie {
     fn search(&self, searches: Vec<&str>, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64>;
     fn delete(&mut self, id: u64);
 }
+
+//non-recursive, search-match pruning and depth pruning
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub struct Trie5 {
+//     children: FxHashMap<char, Trie4>,
+    
+//     first: FxHashMap<char, FxHashMap<usize, *mut Trie4>>,
+//     last: FxHashMap<char, FxHashMap<usize, *mut Trie4>>,
+//     next: *mut Trie4,
+//     //prev: *mut Trie4,
+//     //parent: *mut Trie4,
+
+//     id_to_depth: FxHashMap<u64, usize>,
+//     //max_depth: usize,
+//     //depth: usize,
+//     //position: usize,
+//     //value: char,
+// }
+// impl Trie5 {
+//     fn new(max_depth: usize, id_reserve: usize) -> Self {
+//         Trie5 {
+//             children: HashMap::with_capacity_and_hasher(CHARS.len(), BuildHasherDefault::<FxHasher>::default()),
+
+//             first: HashMap::with_capacity_and_hasher(CHARS.len(), BuildHasherDefault::<FxHasher>::default()),
+//             last: HashMap::with_capacity_and_hasher(CHARS.len(), BuildHasherDefault::<FxHasher>::default()),
+//             next: ptr::null_mut(),
+
+//             id_to_depth: HashMap::with_capacity_and_hasher(id_reserve, BuildHasherDefault::<FxHasher>::default()),
+//         }
+//     }
+//     fn search_single(&self, search: &str, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64> {
+//         let mut results = FxHashSet::default();
+//         let mut tries_to_visit = vec![(self, search)];
+//         while let Some((trie, search)) = tries_to_visit.pop() {
+//             if let Some(first_char) = search.chars().nth(0) {
+
+//                 // for c in CHARS.iter() {
+//                 //     if let Some(new_trie) = trie.children.get(c) {
+//                 //         let new_search = if *c == first_char { &search[1..] } else { search };
+//                 //         tries_to_visit.push((new_trie, new_search));
+//                 //     }
+//                 // }
+//             }
+//             else {
+//                 let ids = &trie.id_to_depth.keys().cloned().collect();
+//                 results = results.union(ids).cloned().collect();
+//             }
+//         }
+//         results
+//     }
+// }
+// impl Trie for Trie5 {
+//     fn add(&mut self, id: u64, inserts: Vec<&str>) {
+        
+//     }
+//     fn search(&self, searches: Vec<&str>, filter: Option<&FxHashSet<u64>>) -> FxHashSet<u64> {
+//         let mut searches = searches.iter();
+//         if let Some(first_search) = searches.next() {
+//             let mut result = Self::search_single(self, first_search, filter);
+//             for search in searches { //use results of previous searches to filter ids in subsequent searches
+//                 result = result.intersection(&Self::search_single(self, search, Some(&result))).cloned().collect();
+//             }
+//             result
+//         }
+//         else {
+//             FxHashSet::default()
+//         }
+//     }
+//     fn delete(&mut self, id: u64) {
+        
+//     }
+// }
+// impl Default for Trie5 {
+//     fn default() -> Self {
+//         Self::new(32, 32)
+//     }
+// }
 
 //non-recursive, search-match pruning and depth pruning
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,7 +116,7 @@ impl Trie4 {
 
         for c in insert.chars() {
             trie = trie.children.entry(c).or_insert(Trie4::new());
-            new_depth = new_depth - 1;
+            new_depth -= 1;
 
             trie.id_to_depth.entry(id)
             .and_modify(|current_depth| {
