@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::ptr;
 use arrayvec::ArrayVec;
 
-const K: usize = 3;         //TERMINOLOGY: number of symbols in alphabet (should really be generated from Sigma definition)
+const K: usize = 3;         //TERMINOLOGY: number of symbols in alphabet (TODO: should really be generated from Sigma definition)
 const M: usize = 10;        //TERMINOLOGY: max length of attributes
 const NoLink: Link = None;  //Necessary for initializing arrays
 
@@ -15,7 +15,7 @@ type Id = usize;
 type Link = Option<Box<Node>>; //inspired by: https://rust-unofficial.github.io/too-many-lists/second-final.html
 
 #[derive(Clone)]
-enum Sigma { //TERMINOLOGY: alphabet
+enum Sigma { //TERMINOLOGY: alphabet of symbols
     A, B, C,
 }
 impl From<char> for Sigma {
@@ -37,7 +37,7 @@ impl From<Sigma> for char {
         }
     }
 }
-impl From<Sigma> for usize { //for navigating [T; K] arrays, we actually want a macro for making this substitution at compile-time
+impl From<Sigma> for usize { //for navigating [T; K] arrays, (TODO: we actually want a macro for making this substitution at compile-time)
     fn from(s: Sigma) -> Self {
         match s {
             Sigma::A => 0,
@@ -83,17 +83,17 @@ impl Essd {
         self.table.len()
     }
     fn node(&self, x: Position, y: Level) -> Option<&Node> { //TERMINOLOGY: refers to node at position x, level y
-        panic!() //awkward to implement (and probably unnecessary?)
+        panic!() //awkward to implement and probably unnecessary? (TODO: Maybe implement?)
     }
 }
 impl Essd {
     fn new() -> Self {
         Essd {
             table: Vec::new(),
-            trie: Some(Box::new(Node::new())),
+            trie: Some(Box::new(Node::new())), //root node
         }
     }
-    fn insert(&mut self, id: Id, attribute: SigString) { //does not support update (i.e. id should not already exist)
+    fn insert(&mut self, attribute: SigString) { //No id necessary here since Essd.table: Vec<SigString>
         unimplemented!()
     }
     fn search(&self, SigString(query): SigString) -> Vec<(Id, SigString)> {
@@ -116,7 +116,7 @@ struct Node {
     start_tuple: *mut Id,
     end_tuple: *mut Id,
     label: Sigma,                       //Sigma::default() for root node                (should never be used at root node)
-    first_occour: [[*mut Node; M]; K],  //e.g. first_occour[usize::from(Sigma::A)][5]   (this wastes a LOT of space since only root node needs all M depths)
+    first_occour: [[*mut Node; M]; K],  //e.g. first_occour[usize::from(Sigma::A)][5]   (TODO: this wastes a LOT of space for non-root nodes, find a solution)
     last_occour: [[*mut Node; M]; K],
     level: Level,                       //0 for root node
     next: *mut Node,
