@@ -5,40 +5,49 @@ type Level = usize;
 type Position = usize;
 type Id = usize;
 
-type SigString = ArrayVec<Sigma, M>;
-struct WrapStr<'a>(&'a str);
-struct WrapString(String);
-impl From<WrapStr<'_>> for SigString {
-    fn from(WrapStr(s): WrapStr) -> Self {
-        let mut sig_string = ArrayVec::new();
-        for c in s.chars().take(M) {
-            sig_string.push(match c {
-                'a' => Sigma::A,
-                'b' => Sigma::B,
-                'c' => Sigma::C,
-                _ => panic!(),
-            });
+#[derive(Clone)]
+enum Sigma { //TERMINOLOGY: alphabet
+    A, B, C,
+}
+impl From<char> for Sigma {
+    fn from(c: char) -> Self {
+        match c {
+            'a' => Self::A,
+            'b' => Self::B,
+            'c' => Self::C,
+            _ => panic!(),
         }
-        sig_string
     }
 }
-impl From<SigString> for WrapString {
-    fn from(s: SigString) -> Self {
-        let mut string = String::new();
-        for c in s.into_iter() {
-            string.push(match c {
-                Sigma::A => 'a',
-                Sigma::B => 'b',
-                Sigma::C => 'b',
-            });
+impl From<Sigma> for char {
+    fn from(s: Sigma) -> Self {
+        match s {
+            Sigma::A => 'a',
+            Sigma::B => 'b',
+            Sigma::C => 'c',
         }
-        WrapString(string)
     }
 }
 
 #[derive(Clone)]
-enum Sigma { //TERMINOLOGY: alphabet
-    A, B, C,
+struct SigString(ArrayVec<Sigma, M>);
+impl From<&str> for SigString {
+    fn from(s: &str) -> Self {
+        let mut vec = ArrayVec::new();
+        for c in s.chars().take(M) {
+            vec.push(Sigma::from(c));
+        }
+        SigString(vec)
+    }
+}
+impl From<SigString> for String {
+    fn from(SigString(vec): SigString) -> Self {
+        let mut string = String::new();
+        for s in vec.into_iter() {
+            string.push(char::from(s));
+        }
+        string
+    }
 }
 
 const K: usize = 3; //TERMINOLOGY: number of characters in alphabet
@@ -69,12 +78,12 @@ impl Essd {
     fn insert(&mut self, id: Id, attribute: SigString) { //does not support update (i.e. id should not already exist)
         unimplemented!()
     }
-    fn search(&self, query: SigString) -> Vec<(Id, SigString)> {
+    fn search(&self, SigString(query): SigString) -> Vec<(Id, SigString)> {
         let l = query.len(); //TERMINOLOGY: length of given query (l <= m)
         let ids = self.trie.search(&query);
         let mut results = Vec::new();
         for id in ids {
-            let val: SigString = (*self.table.get(&id).unwrap()).to_owned();
+            let val = (*self.table.get(&id).unwrap()).to_owned();
             results.push((id, val))
         }
         results
@@ -88,7 +97,7 @@ struct Node {
     children: HashMap<Sigma, Node>,
     start_tuple: *mut Id,
     end_tuple: *mut Id,
-    label: Sigma,           //Defaults to A for root node (should never be used at root node)
+    label: Sigma,           //Defaults to Sigma::A for root node (should never be used at root node)
     first_occour: HashMap<Sigma, HashMap<Level, *mut Node>>,
     last_occour: HashMap<Sigma, HashMap<Level, *mut Node>>,
     level: Level,           //0 for root node
