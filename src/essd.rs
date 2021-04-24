@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::ptr;
 use arrayvec::ArrayVec;
 
-const K: usize = 3;         //TERMINOLOGY: number of symbols in alphabet (TODO: should really be generated from Sigma definition)
+const K: usize = 3;         //TERMINOLOGY: number of symbols in alphabet (TODO: should really use a macro to generate from Sigma definition)
 const M: usize = 10;        //TERMINOLOGY: max length of attributes
 const NoLink: Link = None;  //Necessary for initializing arrays
 
@@ -90,7 +90,7 @@ impl Essd {
     fn new() -> Self {
         Essd {
             table: Vec::new(),
-            trie: Some(Box::new(Node::new())), //root node
+            trie: Some(Box::new(Node::new(0, M))), //root node
         }
     }
     fn insert(&mut self, attribute: SigString) { //No id necessary here since Essd.table: Vec<SigString>
@@ -116,25 +116,25 @@ struct Node {
     start_tuple: *mut Id,
     end_tuple: *mut Id,
     label: Sigma,                       //Sigma::default() for root node                (should never be used at root node)
-    first_occour: [[*mut Node; M]; K],  //e.g. first_occour[usize::from(Sigma::A)][5]   (TODO: this wastes a LOT of space for non-root nodes, find a solution)
-    last_occour: [[*mut Node; M]; K],
+    first_occour: Vec<[*mut Node; K]>,  //e.g. first_occour[5][usize::from(Sigma::A)]   (find first fresh occourence of A at relative level 5)
+    last_occour: Vec<[*mut Node; K]>,
     level: Level,                       //0 for root node
     next: *mut Node,
     position: Position,                 //0 for root and first-inserted node at each level
     parent: *mut Node,
 }
 impl Node {
-    fn new() -> Self {
+    fn new(level: usize, max_level: usize) -> Self {
         Node {
             children: [NoLink; K],
             start_tuple: ptr::null_mut(),
             end_tuple: ptr::null_mut(),
             label: Sigma::default(),
-            first_occour: [[ptr::null_mut(); M]; K],
-            last_occour: [[ptr::null_mut(); M]; K],
-            level: 0,
+            first_occour: vec![[ptr::null_mut(); K]; max_level - level],
+            last_occour: vec![[ptr::null_mut(); K]; max_level - level],
+            level,
             next: ptr::null_mut(),
-            position: 0,
+            position: 0, //TODO: figure out how this gets calculated and utilized
             parent: ptr::null_mut(),
         }
     }
