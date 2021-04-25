@@ -76,7 +76,8 @@ impl From<SigString> for String {
 struct Essd { 
     table: Vec<SigString>, //id = vector index (we never need to delete items from the table, only make them unsearchable through the trie)
     trie: NodeLink,
-    //linked_ids: ...
+    linked_ids: Box<Vec<(Id, usize, usize)>>,   //hacky way of getting linked-list-like functionality
+    //we need vector itself to be heap allocated because we store a point to it (not its elements) (TODO: Check this actually makes sense)
 }
 impl Essd {
     fn table_length(&self) -> usize { //TERMINOLOGY N: number of tuples in table
@@ -88,9 +89,17 @@ impl Essd {
 }
 impl Essd {
     fn new() -> Self {
+        //TODO: Figure out whether this is really the best way to do this
+        let mut linked_ids: Box<Vec<(Id, usize, usize)>> = Box::new(Vec::new());
+        let linked_ptr = Box::into_raw(linked_ids);
+        unsafe {
+            linked_ids = Box::from_raw(linked_ptr.clone());
+        }
+
         let root_node = Node::new(
-            ptr::null_mut(),
-            ptr::null_mut(),
+            linked_ptr,
+            std::usize::MAX,
+            std::usize::MAX,
             Sigma::default(), 
             0,
             0,
@@ -100,6 +109,7 @@ impl Essd {
         Essd {
             table: Vec::new(),
             trie: Some(Box::new(root_node)), //root node
+            linked_ids,
         }
     }
     fn insert(&mut self, attribute: SigString) { //No id necessary here since Essd.table: Vec<SigString>
@@ -122,8 +132,11 @@ impl Essd {
 
 struct Node {
     children: [NodeLink; CARDINALITY],
-    start_tuple: *mut Id,
-    end_tuple: *mut Id,
+
+    ids: *mut Vec<(Id, usize, usize)>,
+    start_id_index: usize,                          //std::usize::MAX in the case of root node when no other nodes exist
+    end_id_index: usize,                            //std::usize::MAX in the case of root node when no other nodes exist
+
     label: Sigma,                                   //Sigma::default() for root node                (should never be used at root node)
     first_occour: Vec<[*mut Node; CARDINALITY]>,    //e.g. first_occour[5][usize::from(Sigma::A)]   (find first fresh occourence of A, 6 levels beneath this node)
     last_occour: Vec<[*mut Node; CARDINALITY]>,
@@ -134,8 +147,9 @@ struct Node {
 }
 impl Node {
     fn new(
-        start_tuple: *mut Id, 
-        end_tuple: *mut Id,
+        ids: *mut Vec<(Id, usize, usize)>,
+        start_id_index: usize, 
+        end_id_index: usize,
         label: Sigma,
         level: usize,
         position: usize,
@@ -147,8 +161,9 @@ impl Node {
             first_occour: vec![[ptr::null_mut(); CARDINALITY]; max_level - level],
             last_occour: vec![[ptr::null_mut(); CARDINALITY]; max_level - level],
             next: ptr::null_mut(),
-            start_tuple,
-            end_tuple,
+            ids,
+            start_id_index,
+            end_id_index,
             label,
             level,
             position,
@@ -159,7 +174,41 @@ impl Node {
         unimplemented!()
     }
     fn search(&self, query: &[Sigma]) -> HashSet<Id> {
-        unimplemented!()
+        let mut tuples = HashSet::new();
+        if query.len() == 0 {
+            return self.tuples_in_subtree();
+        }
+        for (level, first) in self.first_occour.iter().enumerate() {
+            let first_ptr = first[usize::from(query[0].to_owned())];
+            if !first_ptr.is_null() {
+                let mut node = first_ptr;
+                unsafe {
+                    tuples = tuples.union(&(*node).search(&query[1..])).cloned().collect(); //TODO: figure out if this is inefficient
+                    while node != self.last_occour[level][usize::from(query[0].to_owned())] {
+                        node = (*node).next;
+                        tuples = tuples.union(&(*node).search(&query[1..])).cloned().collect();
+                    }
+                }
+            }
+        }
+        tuples
+    }
+    fn tuples_in_subtree(&self) -> HashSet<Id> {
+        let mut tuples = HashSet::new();
+        let mut index = self.start_id_index;
+        let mut val;
+        unsafe {
+            val = (*self.ids)[index];
+        }
+        tuples.insert(val.0);
+        while index != self.end_id_index {
+            index = val.2;
+            unsafe {
+                val = (*self.ids)[index];
+            }
+            tuples.insert(val.0);
+        }
+        tuples
     }
     fn delete(&mut self, id: Id) {
         unimplemented!()
