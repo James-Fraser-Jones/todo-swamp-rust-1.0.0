@@ -89,15 +89,9 @@ impl Essd {
 }
 impl Essd {
     fn new() -> Self {
-        //TODO: Figure out whether this is really the best way to do this
-        let mut linked_ids: Box<Vec<(Id, usize, usize)>> = Box::new(Vec::new());
-        let linked_ptr = Box::into_raw(linked_ids);
-        unsafe {
-            linked_ids = Box::from_raw(linked_ptr.clone());
-        }
-
+        let linked_ids: Box<Vec<(Id, usize, usize)>> = Box::new(Vec::new());
+        //let linked_ptr = &mut*linked_ids as *mut _;
         let root_node = Node::new(
-            linked_ptr,
             std::usize::MAX,
             std::usize::MAX,
             Sigma::default(), 
@@ -116,9 +110,9 @@ impl Essd {
         unimplemented!()
     }
     fn search(&self, SigString(query): SigString) -> Vec<(Id, SigString)> {
-        let _query_length = query.len(); //TERMINOLOGY L: length of given query (l <= m)
+        let _query_length = query.len(); //TERMINOLOGY L: length of given query (L <= M)
         let trie = self.trie.as_ref().unwrap();
-        let ids = trie.search(&query);
+        let ids = trie.search(&query, &self.linked_ids);
         let mut results = Vec::new();
         for id in ids {
             results.push((id, self.table[id].to_owned()));
@@ -133,9 +127,8 @@ impl Essd {
 struct Node {
     children: [NodeLink; CARDINALITY],
 
-    ids: *mut Vec<(Id, usize, usize)>,
-    start_id_index: usize,                          //std::usize::MAX in the case of root node when no other nodes exist
-    end_id_index: usize,                            //std::usize::MAX in the case of root node when no other nodes exist
+    start_id_index: usize,                          //std::usize::MAX in the case of node containing no ids
+    end_id_index: usize,                            //std::usize::MAX in the case of node containing no ids
 
     label: Sigma,                                   //Sigma::default() for root node                (should never be used at root node)
     first_occour: Vec<[*mut Node; CARDINALITY]>,    //e.g. first_occour[5][usize::from(Sigma::A)]   (find first fresh occourence of A, 6 levels beneath this node)
@@ -147,7 +140,6 @@ struct Node {
 }
 impl Node {
     fn new(
-        ids: *mut Vec<(Id, usize, usize)>,
         start_id_index: usize, 
         end_id_index: usize,
         label: Sigma,
@@ -161,7 +153,6 @@ impl Node {
             first_occour: vec![[ptr::null_mut(); CARDINALITY]; max_level - level],
             last_occour: vec![[ptr::null_mut(); CARDINALITY]; max_level - level],
             next: ptr::null_mut(),
-            ids,
             start_id_index,
             end_id_index,
             label,
@@ -172,40 +163,61 @@ impl Node {
     }
     fn insert(&mut self, id: Id, attribute: &[Sigma]) { //does not support update (i.e. id should not already exist)
         unimplemented!()
+        /*
+        push id onto the end of linked-ids, once we reach the end of the "chain" it should be apparent what to set the indices to
+        and which other elements' indices to change to ensure correct ordering of "linked" elements
+
+        so go down the trie chain
+
+        upon reaching an empty node, switch to "empty node mode" where we can assume all children beyond this point will also be empty
+        in "empty node mode", we not only add specified id but have to modify pointers on the empty node and its ancestor and sibling nodes
+        specifically:
+            next
+                use variable with pointer to immediate parent's last_occour for your symbol to get that node and set its "next" pointer to yourself
+            first_occour & last occour
+                for all ancestors up to and including first ancestor with same label as the node you added,
+                check first_occour for your symbol at relative level +1 for each ancestor above, if it's null, 
+                then add pointer to yourself at first_occour and last_occour, otherwise just add pointer at last_occour
+            start_id_index & end_id_index
+                upon reaching the first empty node, check parent's start_id_index and end_id_index,
+                for this range, lookup the associated word in the table and use lexicographical ordering to determine current insert word's position
+                use this to determine which indices to update in order to propperly "insert" id into linked-ids
+                if word happens to be *first* or *last* in this sublist, then chance parent's (and all further relevant ancestors) start_id_index or end_id_index to 
+                reflect this. (ancestors are only relevant when they have the same start_id_index or end_id_index)
+                for all further empty nodes, start_id_index and end_id_index should just be set to index of the insert word's id in the linked_ids
+        
+        upon reaching a non-existent node, switch to "create nodes mode" where we know we will have to create a node for all remaining characters
+        so here we: create node, then do the same (as above)
+        */
     }
-    fn search(&self, query: &[Sigma]) -> HashSet<Id> {
+    fn search(&self, query: &[Sigma], ids: &Vec<(Id, usize, usize)>) -> HashSet<Id> {
         let mut tuples = HashSet::new();
         if query.len() == 0 {
-            return self.tuples_in_subtree();
+            return self.tuples_in_subtree(ids);
         }
         for (level, first) in self.first_occour.iter().enumerate() {
             let first_ptr = first[usize::from(query[0].to_owned())];
             if !first_ptr.is_null() {
                 let mut node = first_ptr;
                 unsafe {
-                    tuples = tuples.union(&(*node).search(&query[1..])).cloned().collect(); //TODO: figure out if this is inefficient
+                    tuples = tuples.union(&(*node).search(&query[1..], ids)).cloned().collect(); //TODO: figure out if this is inefficient
                     while node != self.last_occour[level][usize::from(query[0].to_owned())] {
                         node = (*node).next;
-                        tuples = tuples.union(&(*node).search(&query[1..])).cloned().collect();
+                        tuples = tuples.union(&(*node).search(&query[1..], ids)).cloned().collect();
                     }
                 }
             }
         }
         tuples
     }
-    fn tuples_in_subtree(&self) -> HashSet<Id> {
+    fn tuples_in_subtree(&self, ids: &Vec<(Id, usize, usize)>) -> HashSet<Id> {
         let mut tuples = HashSet::new();
         let mut index = self.start_id_index;
-        let mut val;
-        unsafe {
-            val = (*self.ids)[index];
-        }
+        let mut val = ids[index];
         tuples.insert(val.0);
         while index != self.end_id_index {
             index = val.2;
-            unsafe {
-                val = (*self.ids)[index];
-            }
+            val = ids[index];
             tuples.insert(val.0);
         }
         tuples
