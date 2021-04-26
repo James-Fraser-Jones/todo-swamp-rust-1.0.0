@@ -76,21 +76,18 @@ impl From<SigString> for String {
 struct Essd { 
     table: Vec<SigString>, //id = vector index (we never need to delete items from the table, only make them unsearchable through the trie)
     trie: NodeLink,
-    linked_ids: Box<Vec<(Id, usize, usize)>>,   //hacky way of getting linked-list-like functionality
-    //we need vector itself to be heap allocated because we store a point to it (not its elements) (TODO: Check this actually makes sense)
+    linked_ids: Vec<(Id, usize, usize)>,   //hacky way of getting linked-list-like functionality (TODO: Possibly remove prev_index if we don't need it)
 }
 impl Essd {
     fn table_length(&self) -> usize { //TERMINOLOGY N: number of tuples in table
         self.table.len()
     }
     fn node(&self, x: Position, y: Level) -> Option<&Node> { //TERMINOLOGY node(x, y): refers to node at position x, level y
-        panic!() //awkward to implement and probably unnecessary? (TODO: Maybe implement?)
+        panic!() //(TODO: implement)
     }
 }
 impl Essd {
     fn new() -> Self {
-        let linked_ids: Box<Vec<(Id, usize, usize)>> = Box::new(Vec::new());
-        //let linked_ptr = &mut*linked_ids as *mut _;
         let root_node = Node::new(
             std::usize::MAX,
             std::usize::MAX,
@@ -103,7 +100,7 @@ impl Essd {
         Essd {
             table: Vec::new(),
             trie: Some(Box::new(root_node)), //root node
-            linked_ids,
+            linked_ids: Vec::new(),
         }
     }
     fn insert(&mut self, attribute: SigString) { //No id necessary here since Essd.table: Vec<SigString>
@@ -125,7 +122,7 @@ impl Essd {
 }
 
 struct Node {
-    children: [NodeLink; CARDINALITY],
+    children: [NodeLink; CARDINALITY], //TODO: Implement with pointers instead and have Vec<Vec<Node>> parametrized by level then position
 
     start_id_index: usize,                          //std::usize::MAX in the case of node containing no ids
     end_id_index: usize,                            //std::usize::MAX in the case of node containing no ids
