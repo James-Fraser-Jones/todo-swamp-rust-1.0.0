@@ -11,9 +11,7 @@ const ATTR_MAX: usize = 10;     //TERMINOLOGY M: max length of attributes
 struct Id(usize);
 struct Lvl(usize);
 struct Pos(usize);
-type PosPtr = Option<Pos>;
 
-const POS_NULL: PosPtr = None;  //Necessary for initializing arrays
 const EMPTY_NODES: Vec<Node> = Vec::new();
 
 #[derive(Clone)]
@@ -94,13 +92,13 @@ impl Essd {
             Sigma::Root, 
             Lvl(0),
             Pos(0),
-            POS_NULL,
+            None,
         );
         let mut trie = [EMPTY_NODES;ATTR_MAX+1];
         trie[0].push(root_node);
         Essd {
             table: Vec::new(),
-            trie, //root node
+            trie,
             linked_ids: Vec::new(),
         }
     }
@@ -125,24 +123,23 @@ impl Essd {
 struct Node {
     id_index_range: Option<(usize, usize)>,
     label: Sigma,
-    first_occour: Vec<[PosPtr; CARDINALITY]>,   //e.g. first_occour[5][usize::from(Sigma::A)]   (find first fresh occourence of A, 6 levels beneath this node)
-    last_occour: Vec<[PosPtr; CARDINALITY]>,    //first element of first_occour and last_occour both give direct children of the node
-    level: Lvl,                                 //0 for root node
-    next: PosPtr,
-    position: Pos,                              //0 for root and first-inserted node at each level
-    parent: PosPtr,
+    //e.g. self.fresh[5][usize::from(Sigma::A)].unwrap().0 (position of first fresh occourence of A, 6 levels beneath this node)
+    fresh: Vec<[Option<(Pos,Pos)>; CARDINALITY]>,
+    level: Lvl, //0 for root node
+    next: Option<Pos>,
+    position: Pos, //0 for root and first-inserted node at each level
+    parent: Option<Pos>,
 }
 impl Node {
     fn new(
         label: Sigma,
         level: Lvl,
         position: Pos,
-        parent: PosPtr,
+        parent: Option<Pos>,
         ) -> Self {
         Node {
-            first_occour: vec![[POS_NULL; CARDINALITY]; ATTR_MAX-level.0],
-            last_occour: vec![[POS_NULL; CARDINALITY]; ATTR_MAX-level.0],
-            next: POS_NULL,
+            fresh: vec![[None; CARDINALITY]; ATTR_MAX-level.0],
+            next: None,
             id_index_range: None,
             label,
             level,
@@ -188,12 +185,12 @@ impl Node {
         if query.len() == 0 {
             return self.tuples_in_subtree(ids);
         }
-        for (relative_level, first_arr) in self.first_occour.iter().enumerate() {
-            let first_ptr = first_arr[usize::from(query[0].to_owned())];
-            if let Some(Pos(first_pos)) = first_ptr {
-                let mut node = &trie_chunk[relative_level][first_pos];
+        for (relative_level, fresh_level) in self.fresh.iter().enumerate() {
+            let fresh_level_symbol = fresh_level[usize::from(query[0].to_owned())];
+            if let Some((Pos(fresh_first), Pos(fresh_last))) = fresh_level_symbol {
+                let mut node = &trie_chunk[relative_level][fresh_first];
                 tuples = tuples.union(&node.search(&query[1..], &trie_chunk[relative_level+1..], ids)).cloned().collect(); //TODO: figure out if this is inefficient
-                while node.position.0 != self.last_occour[relative_level][usize::from(query[0].to_owned())].unwrap().0 {
+                while node.position.0 != fresh_last {
                     node = &trie_chunk[relative_level][node.next.unwrap().0];
                     tuples = tuples.union(&node.search(&query[1..], &trie_chunk[relative_level+1..], ids)).cloned().collect();
                 }
@@ -203,7 +200,7 @@ impl Node {
     }
     fn tuples_in_subtree(&self, ids: &Vec<(Id, Option<usize>)>) -> HashSet<Id> {
         let mut tuples = HashSet::new();
-        let (start_idx, end_idx) = self.id_index_range.unwrap();
+        let (start_idx, end_idx) = self.id_index_range.unwrap(); //this function should never be called when id_index_range is None
         let mut index = start_idx;
         let mut val = ids[index];
         tuples.insert(val.0);
