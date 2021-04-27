@@ -86,7 +86,7 @@ impl From<SigString> for String {
 struct Essd { 
     table: Vec<SigString>, //id = vector index (we never need to delete items from the table, only make them unsearchable through the trie)
     trie: Trie,
-    linked_ids: LinkedList<Id>, 
+    ids: LinkedList<Id>, 
 }
 impl Essd {
     fn table_length(&self) -> usize { //TERMINOLOGY N: number of tuples in table
@@ -101,18 +101,13 @@ impl Essd {
 }
 impl Essd {
     fn new() -> Self {
-        let root_node = Node::new(
-            Sigma::Root, 
-            Lvl(0),
-            Pos(0),
-            None,
-        );
         let mut trie = [EMPTY_LEVEL; ATTR_MAX + 1];
+        let root_node = Node::new(Sigma::Root, Lvl(0), Pos(0), None);
         trie[0].push(root_node);
         Essd {
             table: Vec::new(),
             trie,
-            linked_ids: Vec::new(),
+            ids: Vec::new(),
         }
     }
     fn insert(&mut self, attribute: SigString) { //No id necessary here since Essd.table: Vec<SigString>
@@ -121,14 +116,8 @@ impl Essd {
     fn search(&self, SigString(query): SigString) -> Vec<(Id, SigString)> {
         let query_length = query.len(); //TERMINOLOGY L: length of given query (L <= M)
         if query_length > ATTR_MAX { panic!() }
-
-        let root_node = self.root();
-        let ids = root_node.search(&query);
-        let mut results = Vec::new();
-        for id in ids {
-            results.push((id, self.table[id.0].to_owned()));
-        }
-        results
+        let ids = self.root().search(&query);
+        ids.into_iter().map(|id| (id, self.table[id.0].to_owned())).collect()
     }
     fn delete(&mut self, id: Id) {
         unimplemented!()
