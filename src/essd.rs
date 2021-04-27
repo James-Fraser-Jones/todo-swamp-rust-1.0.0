@@ -1,18 +1,31 @@
 //Implementation of Trie algorithm from "Efficient Subsequence Search for Databases"
 //https://link.springer.com/chapter/10.1007/978-3-642-38562-9_45
 
+//Assertions:
+//1: Max trie depth and hence maximum searchable attribute (string) length is static (set by ATTR_MAX)
+//2: Each record has only 1 attribute to have a subsequence matched on
+//3: Each record has a unique attribute (unsure whether this is really necessary but simplifies reasoning for now)
+
 use std::collections::HashSet;
 use arrayvec::ArrayVec;
+use std::ptr::NonNull;
 
 const CARDINALITY: usize = 3;   //TERMINOLOGY K: number of symbols in alphabet (does not include special 'Root' symbol)
 const ATTR_MAX: usize = 10;     //TERMINOLOGY M: max length of attributes
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash)]
 struct Id(usize);
+#[derive(PartialEq, Eq, Clone, Copy)]
 struct Lvl(usize);
+#[derive(PartialEq, Eq, Clone, Copy)]
 struct Pos(usize);
 
-const EMPTY_NODES: Vec<Node> = Vec::new();
+const EMPTY_LEVEL: Vec<Node> = Vec::new(); //needed for array initialization
+
+struct Link<T>(T, Option<NonNull<Link<T>>>);
+type LinkedList<T> = Vec<Link<T>>; //hacky way of getting linked-list-like functionality
+
+type Trie = [Vec<Node>; ATTR_MAX + 1];
 
 #[derive(Clone)]
 enum Sigma { //TERMINOLOGY Σ: alphabet of symbols
@@ -72,8 +85,8 @@ impl From<SigString> for String {
 
 struct Essd { 
     table: Vec<SigString>, //id = vector index (we never need to delete items from the table, only make them unsearchable through the trie)
-    trie: [Vec<Node>; ATTR_MAX+1],
-    linked_ids: Vec<(Id, Option<usize>)>, //hacky way of getting linked-list-like functionality
+    trie: Trie,
+    linked_ids: LinkedList<Id>, 
 }
 impl Essd {
     fn table_length(&self) -> usize { //TERMINOLOGY N: number of tuples in table
@@ -94,7 +107,7 @@ impl Essd {
             Pos(0),
             None,
         );
-        let mut trie = [EMPTY_NODES;ATTR_MAX+1];
+        let mut trie = [EMPTY_LEVEL; ATTR_MAX + 1];
         trie[0].push(root_node);
         Essd {
             table: Vec::new(),
@@ -106,9 +119,11 @@ impl Essd {
         unimplemented!()
     }
     fn search(&self, SigString(query): SigString) -> Vec<(Id, SigString)> {
-        let _query_length = query.len(); //TERMINOLOGY L: length of given query (L <= M)
+        let query_length = query.len(); //TERMINOLOGY L: length of given query (L <= M)
+        if query_length > ATTR_MAX { panic!() }
+
         let root_node = self.root();
-        let ids = root_node.search(&query, &self.trie, &self.linked_ids);
+        let ids = root_node.search(&query);
         let mut results = Vec::new();
         for id in ids {
             results.push((id, self.table[id.0].to_owned()));
@@ -121,31 +136,37 @@ impl Essd {
 }
 
 struct Node {
-    id_index_range: Option<(usize, usize)>,
     label: Sigma,
-    //e.g. self.fresh[5][usize::from(Sigma::A)].unwrap().0 (position of first fresh occourence of A, 6 levels beneath this node)
-    fresh: Vec<[Option<(Pos,Pos)>; CARDINALITY]>,
-    level: Lvl, //0 for root node
-    next: Option<Pos>,
-    position: Pos, //0 for root and first-inserted node at each level
-    parent: Option<Pos>,
+
+    level: Lvl,
+    position: Pos,
+
+    //e.g: self.fresh[5][usize::from(Sigma::A)].unwrap().0 (pointer to first fresh occourence of A, 6 levels beneath this node)
+    fresh: Vec<[Option<(NonNull<Node>, NonNull<Node>)>; CARDINALITY]>,
+    id_range: Option<(NonNull<Link<Id>>, NonNull<Link<Id>>)>,
+
+    next: Option<NonNull<Node>>,
+    parent: Option<NonNull<Node>>,
 }
 impl Node {
     fn new(
         label: Sigma,
         level: Lvl,
         position: Pos,
-        parent: Option<Pos>,
+        parent: Option<NonNull<Node>>,
         ) -> Self {
         Node {
-            fresh: vec![[None; CARDINALITY]; ATTR_MAX-level.0],
-            next: None,
-            id_index_range: None,
             label,
             level,
             position,
+            fresh: vec![[None; CARDINALITY]; ATTR_MAX-level.0],
+            next: None,
+            id_range: None,
             parent,
         }
+    }
+    fn get_child<'a>(&self, symbol: Sigma) -> Option<&Node> {
+        self.fresh[0][usize::from(symbol)].map(|(first, _)| unsafe { &*first.as_ptr() })
     }
     fn insert(&mut self, id: Id, attribute: &[Sigma]) { //does not support update (i.e. id should not already exist)
         unimplemented!()
@@ -180,34 +201,34 @@ impl Node {
 
         //TODO: figure out how we can make this recursive
     }
-    fn search(&self, query: &[Sigma], trie_chunk: &[Vec<Node>], ids: &Vec<(Id, Option<usize>)>) -> HashSet<Id> {
+    fn search(&self, query: &[Sigma]) -> HashSet<Id> {
         let mut tuples = HashSet::new();
         if query.len() == 0 {
-            return self.tuples_in_subtree(ids);
+            return self.tuples_in_subtree();
         }
-        for (relative_level, fresh_level) in self.fresh.iter().enumerate() {
+        for fresh_level in self.fresh.iter() {
             let fresh_level_symbol = fresh_level[usize::from(query[0].to_owned())];
-            if let Some((Pos(fresh_first), Pos(fresh_last))) = fresh_level_symbol {
-                let mut node = &trie_chunk[relative_level][fresh_first];
-                tuples = tuples.union(&node.search(&query[1..], &trie_chunk[relative_level+1..], ids)).cloned().collect(); //TODO: figure out if this is inefficient
-                while node.position.0 != fresh_last {
-                    node = &trie_chunk[relative_level][node.next.unwrap().0];
-                    tuples = tuples.union(&node.search(&query[1..], &trie_chunk[relative_level+1..], ids)).cloned().collect();
+            if let Some((first_ptr, last_ptr)) = fresh_level_symbol {
+                let mut node = unsafe { &*first_ptr.as_ptr() };
+                let last_node_pos = unsafe { &*last_ptr.as_ptr() }.position;
+                tuples = tuples.union(&node.search(&query[1..])).cloned().collect(); //TODO: figure out if this is inefficient
+                while node.position != last_node_pos {
+                    node = unsafe { &*node.next.unwrap().as_ptr() };
+                    tuples = tuples.union(&node.search(&query[1..])).cloned().collect();
                 }
             }
         }
         tuples
     }
-    fn tuples_in_subtree(&self, ids: &Vec<(Id, Option<usize>)>) -> HashSet<Id> {
+    fn tuples_in_subtree(&self) -> HashSet<Id> {
         let mut tuples = HashSet::new();
-        let (start_idx, end_idx) = self.id_index_range.unwrap(); //this function should never be called when id_index_range is None
-        let mut index = start_idx;
-        let mut val = ids[index];
-        tuples.insert(val.0);
-        while index != end_idx {
-            index = val.1.unwrap();
-            val = ids[index];
-            tuples.insert(val.0);
+        let (start_ptr, end_ptr) = self.id_range.unwrap(); //this function should never be called when id_index_range is None
+        let mut link = unsafe { &*start_ptr.as_ptr() };
+        let end_link = unsafe { &*end_ptr.as_ptr() };
+        tuples.insert(link.0);
+        while link.0 != end_link.0 {
+            link = unsafe { &*link.1.unwrap().as_ptr() };
+            tuples.insert(link.0);
         }
         tuples
     }
