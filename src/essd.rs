@@ -186,6 +186,19 @@ impl Node {
         
         upon reaching a non-existent node, switch to "create nodes mode" where we know we will have to create a node for all remaining characters
         so here we: create node, then do the same (as above)
+
+        fn insert(&mut self, id: Id, attribute: &[Sigma])
+        Add id to hashset of current node,
+        If next node exists (check direct child of first character in attribute), recursively call insert on this node with first character removed from attribute
+        If next node doesn't exist, create it and before recursing again do the following:
+            Go up parent chain checking fresh of your letter at your level, until you hit a node with the same symbol as you, or you hit the root
+            If it's None, then make it Some(you, you)
+            If it's Some(first, last) 
+                then (the first time you see this) follow the last to that node and make its new "next" you, 
+                and make your *next* its previous next,
+                then overwrite the "last" pointer with you
+                the next time you see this, check if this "last" has the same last as previous and, if so, change it to you as before
+                if not, you can stop without going further 
         */
 
         //TODO: figure out how we can make this recursive
