@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::iter;
 use std::slice;
+use std::str;
 
 const CARDINALITY: usize = 27;
 
@@ -24,7 +25,57 @@ struct Index(usize);
 //     }
 // }
 
+struct FastIterMutParent<'a> {
+    level_iter: iter::Rev<iter::Take<iter::Skip<slice::IterMut<'a, Vec<Node>>>>>,
+    position: Index,
+}
+impl<'a> FastIterMutParent<'a> {
+    fn new(fast: &'a mut Fast, level: Index, position: Index) -> Self {
+        FastIterMutParent {
+            level_iter: fast.0.iter_mut().skip(1).take(level.0).rev(),
+            position: position,
+        }
+    }
+}
+impl<'a> Iterator for FastIterMutParent<'a> {
+    type Item = &'a mut Node;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.level_iter.next().map(|level| {
+            let node = &mut level[self.position.0];
+            self.position = node.parent.unwrap();
+            node
+        })
+    }
+}
+
+struct FastIterMutChild<'a, 'b> {
+    level_iter: iter::Take<slice::IterMut<'a, Vec<Node>>>,
+    position: Index,
+    char_iter: str::Chars<'b>,
+}
+impl<'a, 'b> FastIterMutChild<'a, 'b> {
+    fn new(fast: &'a mut Fast, word: &'b str) -> Self {
+        FastIterMutChild {
+            level_iter: fast.0.iter_mut().take(word.len() + 1),
+            position: Index(0),
+            char_iter: word.chars(),
+        }
+    }
+}
+impl<'a, 'b> Iterator for FastIterMutChild<'a, 'b> {
+    type Item = &'a mut Node;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.level_iter.next().map(|level| {
+            let node = &mut level[self.position.0];
+            //extremely ugly, and fails silently, shouldn't matter since next() will return None
+            self.position = node.child(self.char_iter.next().unwrap()).unwrap_or(Index(0));
+            node
+        })
+    }
+}
+
 struct Fast(Vec<Vec<Node>>);
+
 impl Fast {
     pub fn new() -> Self {
         Fast(vec![vec![Node::root()]])
@@ -41,7 +92,11 @@ impl Fast {
         }
         results
     }
+    fn iter_mut_parent(&mut self, level: Index, position: Index) -> FastIterMutParent<'_> {
+        FastIterMutParent::new(self, level, position)
+    }
 }
+
 impl Fast {
     fn insert_single(&mut self, id: Id, attribute: &str) {
         //ensure we have enough levels to insert into
@@ -156,7 +211,10 @@ impl Fast {
 //         //it shouldn't be possible to get a cursor from one of the functions below which doesn't point to a valid node
 //         self.0.get(cursor.level.0).unwrap().get(cursor.position.0).unwrap()
 //     }
-
+//     fn node_mut(&mut self, cursor: Cursor) -> &mut Node {
+//         //it shouldn't be possible to get a cursor from one of the functions below which doesn't point to a valid node
+//         self.0.get_mut(cursor.level.0).unwrap().get_mut(cursor.position.0).unwrap()
+//     }
 //     fn fresh(&self, cursor: Cursor, node: &Node, label: char, rel_level: Index, first: bool) -> Option<Cursor> {
 //         let arr = node.fresh.get(cursor.level.0)?;
 //         let (first_index, last_index) = arr[char_to_index(label)]?;
