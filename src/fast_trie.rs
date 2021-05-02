@@ -52,7 +52,7 @@ impl<'a, 'b> Iterator for FastIterMutChild<'a, 'b> {
     fn next(&mut self) -> Option<Self::Item> {
         let level = self.level_iter.next()?;
         let node = &mut level[self.position?.0];
-        self.position = node.child(self.char_iter.next()?);
+        self.position = node.child_position(self.char_iter.next()?);
         Some(node)
     }
 }
@@ -75,6 +75,9 @@ impl Fast {
         }
         results
     }
+    pub fn delete(&mut self, id: Id) {
+        Self::delete_at_positions(self.0.iter_mut(), vec!(Index(0)), id)
+    }
 }
 
 impl Fast {
@@ -86,31 +89,58 @@ impl Fast {
     }
 }
 
+/*
+fn insert_single(&mut self, id: Id, attribute: &str)
+    Step 1:
+        Add id to hashset of current node,
+        go to next node down etc...
+        when you encounter a missing node, take note of your depth, then add all remaining needed nodes to all further levels (up to length of inserted string)
+    Step 2:
+        Start most recently inserted node at lowest depth (length of string)
+        Keep going up updatating relevent indices
+        Stop when you hit root node, or when you run out of things you need to update (because you hit nodes with the same symbol and not in update depth range)
+        If you hit a node with the same symbol and in the update depth range, update it as usual, but then it replaces your current one for that symbol and you update with that one instead
+
+    If child node exists (check direct child of first character in attribute), recursively call insert on this node with first character removed from attribute
+    If next node doesn't exist, create it and before recursing again do the following:
+        Go up parent chain checking fresh of your letter at your level, until you hit a node with the same symbol as you, or you hit the root
+        If it's None, then make it Some(you, you)
+        If it's Some(first, last) 
+            then (the first time you see this) follow the last to that node and make its new "next" you, 
+            and make your *next* its previous next,
+            then overwrite the "last" pointer with you
+            the next time you see this, check if this "last" has the same last as previous and, if so, change it to you as before
+            if not, you can stop without going further 
+*/
+
 impl Fast {
     fn insert_single(&mut self, id: Id, attribute: &str) {
         //ensure we have enough levels to insert into
         let diff = attribute.len() - (self.0.len() - 1);
         self.0.append(&mut iter::repeat(Vec::new()).take(diff).collect());
 
-        self.insert_at_something(id, attribute)
-    }
-    pub fn delete(&mut self, id: Id) {
-        Self::delete_at_position(self.0.iter_mut(), vec!(Index(0)), id)
+        if let Some((last_level, last_position)) = self.add_ids(id, attribute) { //iterate down children, adding ids
+
+            self.add_nodes(id, attribute, last_level, last_position); //add all remaining nodes, with correct parent
+
+            //iterate up parents from bottom node, correcting "fresh" and "next" indices
+            let mut parent_iter = self.iter_mut_parent(Index(attribute.len()), Index(self.0[attribute.len()].len()-1));
+            for (i, parent) in parent_iter.enumerate() {
+                if i < attribute.len() - last_level.0 {
+                    //parent is one of the newly added nodes
+                    
+                }
+                else {
+                    //parent is not
+
+                }
+            }
+        }
     }
     fn search_single(&self, attribute: &str) -> HashSet<Id> {
-        self.search_at_something(attribute)
-    }
-}
-impl Fast {
-    fn insert_at_something(&mut self, id: Id, attribute: &str) {
         unimplemented!()
     }
-
-    fn search_at_something(&self, attribute: &str) -> HashSet<Id> {
-        unimplemented!()
-    }
-
-    fn delete_at_position(mut levels: slice::IterMut<Vec<Node>>, mut positions: Vec<Index>, id: Id) {
+    fn delete_at_positions(mut levels: slice::IterMut<Vec<Node>>, mut positions: Vec<Index>, id: Id) {
         while let Some(level) = levels.next() {
             if positions.is_empty() {
                 break
@@ -119,10 +149,35 @@ impl Fast {
             for position in positions {
                 let node = &mut level[position.0];
                 if node.ids.remove(&id) {
-                    next_positions.append(&mut node.children());
+                    next_positions.append(&mut node.child_positions());
                 }
             }
             positions = next_positions;
+        }
+    }
+}
+
+impl Fast {
+    fn add_ids(&mut self, id: Id, attribute: &str) -> Option<(Index, Index)> {
+        let mut child_iter = self.iter_mut_child(attribute);
+        let mut cur_child = child_iter.next().unwrap(); //root node is always present
+        loop {
+            cur_child.ids.insert(id);
+            if let Some(child) = child_iter.next() {
+                cur_child = child;
+            }
+            else {
+                return Some((cur_child.level, cur_child.position)).filter(|(level,_)| level.0 < attribute.len())
+            }
+        }
+    }
+    fn add_nodes(&mut self, id: Id, attribute: &str, last_level: Index, mut last_position: Index) {
+        for (i, c) in attribute.chars().skip(last_level.0).enumerate() {
+            let next_level = Index(last_level.0 + 1 + i);
+            let next_position = Index(self.0[next_level.0].len());
+            let next_child = Node::new(id, c, next_level, next_position, last_position);
+            self.0[next_level.0].push(next_child);
+            last_position = next_position;
         }
     }
 }
@@ -131,6 +186,8 @@ impl Fast {
 struct Node {
     ids: HashSet<Id>,
     label: char,
+    level: Index,
+    position: Index,
     fresh: Vec<[Option<(Index, Index)>; CARDINALITY]>,
     next: Option<Index>,
     parent: Option<Index>,
@@ -140,26 +197,30 @@ impl Node {
         Node {
             ids: HashSet::new(),
             label: '*',
+            level: Index(0),
+            position: Index(0),
             fresh: Vec::new(),
             next: None,
             parent: None,
         }
     }
-    fn new(id: Id, label: char, parent: Index) -> Self {
+    fn new(id: Id, label: char, level: Index, position: Index, parent: Index) -> Self {
         Node {
             ids: [id].iter().cloned().collect(),
             label,
+            level,
+            position,
             fresh: Vec::new(),
             next: None,
             parent: Some(parent),
         }
     }
-    fn children(&self) -> Vec<Index> {
+    fn child_positions(&self) -> Vec<Index> {
         self.fresh
             .get(0).unwrap_or(&[None; CARDINALITY])
             .iter().filter_map(|e| e.map(|(f,_)| f)).collect()
     }
-    fn child(&self, label: char) -> Option<Index> {
+    fn child_position(&self, label: char) -> Option<Index> {
         self.fresh
             .get(0)
             .and_then(|arr| arr[char_to_index(label)].map(|(f,_)| f))
@@ -251,31 +312,6 @@ fn char_to_index(c: char) -> usize {
 /*
 fn insert_at_cursor(&mut self, cursor: Cursor, id: Id, attribute: &str) {
     Add id to hashset of current node,
-    If child node exists (check direct child of first character in attribute), recursively call insert on this node with first character removed from attribute
-    If next node doesn't exist, create it and before recursing again do the following:
-        Go up parent chain checking fresh of your letter at your level, until you hit a node with the same symbol as you, or you hit the root
-        If it's None, then make it Some(you, you)
-        If it's Some(first, last) 
-            then (the first time you see this) follow the last to that node and make its new "next" you, 
-            and make your *next* its previous next,
-            then overwrite the "last" pointer with you
-            the next time you see this, check if this "last" has the same last as previous and, if so, change it to you as before
-            if not, you can stop without going further 
-*/
-
-/*
-
-fn insert_at_cursor(&mut self, cursor: Cursor, id: Id, attribute: &str) {
-    Step 1:
-        Add id to hashset of current node,
-        go to next node down etc...
-        when you encounter a missing node, take note of your depth, then add all remaining needed nodes to all further levels (up to length of inserted string)
-    Step 2:
-        Start most recently inserted node at lowest depth (length of string)
-        Keep going up updatating relevent indices
-        Stop when you hit root node, or when you run out of things you need to update (because you hit nodes with the same symbol and not in update depth range)
-        If you hit a node with the same symbol and in the update depth range, update it as usual, but then it replaces your current one for that symbol and you update with that one instead
-
     If child node exists (check direct child of first character in attribute), recursively call insert on this node with first character removed from attribute
     If next node doesn't exist, create it and before recursing again do the following:
         Go up parent chain checking fresh of your letter at your level, until you hit a node with the same symbol as you, or you hit the root
