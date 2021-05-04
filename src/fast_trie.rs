@@ -1,3 +1,6 @@
+//Experimental implementation of modified essd algorithm to handle duplicate words, 
+//multiple words per ID, unbounded word length (subject to available memory) and tree pruning similar to the methods used in trie.rs
+
 use std::collections::HashSet;
 use std::iter;
 use std::slice;

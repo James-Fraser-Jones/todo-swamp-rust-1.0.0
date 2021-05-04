@@ -7,31 +7,10 @@ use std::fs;
 use std::time;
 
 pub fn main() -> io::Result<()> {
-    // let args: Vec<String> = std::env::args().collect();
-    // let file_name = &args[1];
-
-    // //run_count
-    // for i in 1..=A {
-    //     benchmark_run_count(&format!("tests/test{}", i), B::new(), C)?;
-    //     println!("Done: {}", i);
-    // }
-
-    // //run_timed
-    // for i in 1..=A {
-    //     let commands_processed = benchmark_run_timed(&format!("tests/test{}", i), B::new(), C)?;
-    //     println!("{}", commands_processed);
-    // }
-
-    // for i in 1..=5 {
-    //     let commands_processed = benchmark_run_timed(&format!("tests/test{}", i), TodoList2::new(), 10000)?;
-    //     println!("{}", commands_processed);
-    // }
-
-    println!("{}", file_run_timed("tests/test1", "naive", TodoList::new(), 10000)?);
-
-    Ok(())
+    standard_run(TodoList::new())
 }
 
+//runs the program, taking input from the standard input and outputs to the standard output
 #[allow(dead_code)]
 fn standard_run<T: TodoLister>(mut tl: T) -> io::Result<()> {
     let stdin = io::stdin();
@@ -46,11 +25,12 @@ fn standard_run<T: TodoLister>(mut tl: T) -> io::Result<()> {
                 }
             }
         }
-        buffer_out.flush()?; //TODO: figure out whether we need to flush the others
     }
     Ok(())
 }
 
+//takes input from the specified file 
+//outputs to an output file
 #[allow(dead_code)]
 fn file_run<T: TodoLister>(file_name: &str, append: &str, mut tl: T) -> io::Result<()> {
     let file_in = fs::File::open(format!("{}.in", file_name))?;
@@ -69,6 +49,9 @@ fn file_run<T: TodoLister>(file_name: &str, append: &str, mut tl: T) -> io::Resu
     Ok(())
 }
 
+//takes input from the specified file
+//outputs to an output file 
+//returns the number of queries it was able to respond to, in the specified number of milliseconds
 #[allow(dead_code)]
 fn file_run_timed<T: TodoLister>(file_name: &str, append: &str, mut tl: T, max_millis: u128) -> io::Result<usize> {
     let file_in = fs::File::open(format!("{}.in", file_name))?;
@@ -93,7 +76,8 @@ fn file_run_timed<T: TodoLister>(file_name: &str, append: &str, mut tl: T, max_m
     Ok(count)
 }
 
-//returns number of responses (multi-line search results count as a single response)
+//takes input from the specified file 
+//returns the number of commands it was able to respond to, in the specified number of milliseconds
 #[allow(dead_code)]
 fn benchmark_run_timed<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u128) -> io::Result<usize> {
     let file_in = fs::File::open(format!("{}.in", file_name))?;
@@ -116,6 +100,8 @@ fn benchmark_run_timed<T: TodoLister>(file_name: &str, mut tl: T, max_millis: u1
     Ok(count)
 }
 
+//takes input from the specified file
+//takes as much time as it needs, to process the specified number of commands
 #[allow(dead_code)]
 fn benchmark_run_count<T: TodoLister>(file_name: &str, mut tl: T, num_commands: usize) -> io::Result<()> {
     let file_in = fs::File::open(format!("{}.in", file_name))?;
@@ -137,6 +123,7 @@ fn benchmark_run_count<T: TodoLister>(file_name: &str, mut tl: T, num_commands: 
     Ok(())
 }
 
+//runs correctness_run on all current implementations to stress test for implementation incorrectness
 #[allow(dead_code)]
 fn correctness_all(test: &str, num_commands: usize) -> io::Result<()> {
     correctness_run("tests", test, "naive", TodoList::new(), num_commands)?;
@@ -148,6 +135,9 @@ fn correctness_all(test: &str, num_commands: usize) -> io::Result<()> {
     Ok(())
 }
 
+//takes input from the specified file
+//takes as much time as it needs, to process the specified number of commands
+//outputs to an output file (with search query results sorted so that outputs from different implementations can be easily compared for equality)
 #[allow(dead_code)]
 fn correctness_run<T: TodoLister>(dir: &str, name: &str, append: &str, mut tl: T, num_commands: usize) -> io::Result<()> {
     let file_in = fs::File::open(format!("{}/{}.in", dir, name))?;
